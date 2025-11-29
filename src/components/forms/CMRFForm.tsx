@@ -1,47 +1,192 @@
 import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Upload, Heart, AlertTriangle, FileText } from "lucide-react";
-import { generateID } from "@/utils/idGenerator";
-import type { CMRFFormData } from "@/types/government";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ArrowLeft, Heart, Loader2 } from "lucide-react";
+import { cmReliefAPI } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 
 interface CMRFFormProps {
   onBack: () => void;
-  onSubmit: (data: CMRFFormData) => void;
 }
 
-export function CMRFForm({ onBack, onSubmit }: CMRFFormProps) {
+interface CMRFFormState {
+  // Applicant Information
+  applicantName: string;
+  fatherOrHusbandName?: string;
+  age?: number;
+  gender?: "Male" | "Female" | "Other";
+  mobile: string;
+  email?: string;
+  aadhaarNumber?: string;
+  address?: string;
+  district?: string;
+  mandal?: string;
+  ward?: string;
+  pincode?: string;
+  // Relief Details
+  reliefType:
+    | "MEDICAL"
+    | "EDUCATION"
+    | "ACCIDENT"
+    | "NATURAL_DISASTER"
+    | "FINANCIAL_ASSISTANCE"
+    | "FUNERAL"
+    | "OTHER";
+  requestedAmount: number;
+  purpose?: string;
+  urgency?: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+  // Medical Details
+  medicalDetails?: {
+    hospitalName?: string;
+    disease?: string;
+    treatmentCost?: number;
+    doctorName?: string;
+    admissionDate?: string;
+  };
+  // Income Details
+  incomeDetails?: {
+    monthlyIncome?: number;
+    occupation?: string;
+    familyMembers?: number;
+    dependents?: number;
+  };
+  // Bank Details
+  bankDetails?: {
+    accountNumber?: string;
+    ifscCode?: string;
+    bankName?: string;
+    branchName?: string;
+    accountHolderName?: string;
+  };
+}
+
+export function CMRFForm({ onBack }: CMRFFormProps) {
   const [step, setStep] = useState(1);
-  const [formData, setFormData] = useState<Partial<CMRFFormData>>({
-    district: 'NLR',
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+
+  const [formData, setFormData] = useState<CMRFFormState>({
+    applicantName: "",
+    mobile: "",
+    reliefType: "MEDICAL",
+    requestedAmount: 0,
+    urgency: "MEDIUM",
   });
 
-  const hospitals = [
-    { code: 'AIMS', name: 'AIMS Hospital, Vijayawada', type: 'Government' },
-    { code: 'SVIMS', name: 'SVIMS, Tirupati', type: 'Government' },
-    { code: 'KGH', name: 'King George Hospital, Visakhapatnam', type: 'Government' },
-    { code: 'NIMS', name: 'NIMS, Hyderabad', type: 'Government' },
-    { code: 'APOLLO', name: 'Apollo Hospitals', type: 'Private' },
-    { code: 'YASHODA', name: 'Yashoda Hospitals', type: 'Private' },
-  ];
+  const handleSubmit = async () => {
+    setLoading(true);
+    try {
+      // Validation
+      if (!formData.applicantName || !formData.mobile) {
+        toast({
+          title: "Validation Error",
+          description: "Please fill in all required fields",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
 
-  const conditions = [
-    'Heart Surgery', 'Cancer Treatment', 'Kidney Transplant', 'Brain Surgery',
-    'Liver Transplant', 'Spine Surgery', 'Eye Surgery', 'Accident Trauma',
-    'Chronic Kidney Disease', 'Diabetes Complications', 'Other'
-  ];
+      if (!/^\d{10}$/.test(formData.mobile)) {
+        toast({
+          title: "Invalid Mobile Number",
+          description: "Please enter a valid 10-digit mobile number",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
 
-  const incomeCategories = [
-    { value: 'BPL', label: 'Below Poverty Line (BPL)', limit: '₹1,00,000' },
-    { value: 'APL_LOW', label: 'APL - Low Income', limit: '₹2,00,000' },
-    { value: 'APL_MID', label: 'APL - Middle Income', limit: '₹5,00,000' },
-    { value: 'SPECIAL', label: 'Special Category', limit: 'Case by case' },
-  ];
+      const cmReliefData = {
+        applicantName: formData.applicantName,
+        fatherOrHusbandName: formData.fatherOrHusbandName,
+        age: formData.age,
+        gender: formData.gender,
+        mobile: formData.mobile,
+        email: formData.email,
+        aadhaar: formData.aadhaarNumber,
+        address: formData.address,
+        district: formData.district,
+        mandal: formData.mandal,
+        ward: formData.ward,
+        pincode: formData.pincode,
+        reliefType: formData.reliefType,
+        requestedAmount: formData.requestedAmount,
+        purpose: formData.purpose,
+        urgency: formData.urgency,
+        medicalDetails: formData.medicalDetails,
+        incomeDetails: formData.incomeDetails,
+        bankDetails: formData.bankDetails,
+        status: "REQUESTED" as const,
+      };
+
+      const response = await cmReliefAPI.create(cmReliefData);
+
+      toast({
+        title: "Success!",
+        description: `CM Relief application submitted successfully. Application ID: ${
+          response.data.cmrfId || "Pending"
+        }`,
+      });
+
+      // Reset form
+      setFormData({
+        applicantName: "",
+        mobile: "",
+        reliefType: "MEDICAL",
+        requestedAmount: 0,
+        urgency: "MEDIUM",
+      });
+      setStep(1);
+      onBack();
+    } catch (error) {
+      console.error("CM Relief submission error:", error);
+      toast({
+        title: "Submission Failed",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to submit application. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateFormData = (field: keyof CMRFFormState, value: unknown) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const updateNestedFormData = (
+    parent: "medicalDetails" | "incomeDetails" | "bankDetails",
+    field: string,
+    value: unknown
+  ) => {
+    setFormData((prev) => ({
+      ...prev,
+      [parent]: {
+        ...prev[parent],
+        [field]: value,
+      },
+    }));
+  };
 
   const handleNext = () => {
     if (step < 4) setStep(step + 1);
@@ -51,34 +196,18 @@ export function CMRFForm({ onBack, onSubmit }: CMRFFormProps) {
     if (step > 1) setStep(step - 1);
   };
 
-  const handleSubmit = () => {
-    const cmrfId = generateID('CMR', formData.district || 'NLR');
-    const completeData: CMRFFormData = {
-      id: cmrfId,
-      ...formData as CMRFFormData,
-      status: 'INTAKE',
-      createdAt: new Date().toISOString(),
-    };
-    onSubmit(completeData);
-  };
-
-  const updateFormData = (field: string, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const selectedHospital = hospitals.find(h => h.code === formData.hospitalCode);
-  const selectedIncomeCategory = incomeCategories.find(c => c.value === formData.incomeCategory);
-
   return (
     <div className="min-h-screen bg-gradient-card p-6">
-      <div className="container mx-auto max-w-2xl">
+      <div className="container mx-auto max-w-4xl">
         <div className="flex items-center gap-4 mb-6">
           <Button variant="outline" onClick={onBack}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back
           </Button>
           <div>
-            <h1 className="text-2xl font-bold text-foreground">CM Relief Fund Application</h1>
+            <h1 className="text-2xl font-bold text-foreground">
+              CM Relief Fund Application
+            </h1>
             <p className="text-muted-foreground">Step {step} of 4</p>
           </div>
         </div>
@@ -86,14 +215,14 @@ export function CMRFForm({ onBack, onSubmit }: CMRFFormProps) {
         {/* Progress Bar */}
         <div className="mb-8">
           <div className="flex justify-between text-sm text-muted-foreground mb-2">
-            <span>Patient Info</span>
-            <span>Medical Details</span>
-            <span>Financial Info</span>
+            <span>Personal Info</span>
+            <span>Relief Details</span>
+            <span>Additional Info</span>
             <span>Review</span>
           </div>
           <div className="w-full bg-muted rounded-full h-2">
-            <div 
-              className="bg-primary h-2 rounded-full transition-smooth" 
+            <div
+              className="bg-primary h-2 rounded-full transition-smooth"
               style={{ width: `${(step / 4) * 100}%` }}
             />
           </div>
@@ -103,380 +232,598 @@ export function CMRFForm({ onBack, onSubmit }: CMRFFormProps) {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Heart className="h-5 w-5" />
-              {step === 1 && "Patient Information"}
-              {step === 2 && "Medical Details"}
-              {step === 3 && "Financial Information"}
+              {step === 1 && "Personal Information"}
+              {step === 2 && "Relief Details"}
+              {step === 3 && "Additional Information"}
               {step === 4 && "Review & Submit"}
             </CardTitle>
             <CardDescription>
-              {step === 1 && "Basic details of the patient"}
-              {step === 2 && "Medical condition and hospital information"}
-              {step === 3 && "Income and financial supporting documents"}
+              {step === 1 && "Enter applicant's personal details"}
+              {step === 2 && "Relief type and amount details"}
+              {step === 3 && "Medical, income, and bank details"}
               {step === 4 && "Review all details before submitting"}
             </CardDescription>
           </CardHeader>
-          
+
           <CardContent className="space-y-6">
+            {/* Step 1: Personal Information */}
             {step === 1 && (
               <>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="patientName">Patient Name *</Label>
+                    <Label htmlFor="applicantName">Applicant Name *</Label>
                     <Input
-                      id="patientName"
-                      value={formData.patientName || ''}
-                      onChange={(e) => updateFormData('patientName', e.target.value)}
-                      placeholder="Enter patient's full name"
+                      id="applicantName"
+                      value={formData.applicantName}
+                      onChange={(e) =>
+                        updateFormData("applicantName", e.target.value)
+                      }
+                      placeholder="Enter full name"
+                      required
                     />
                   </div>
                   <div>
-                    <Label htmlFor="patientAge">Age *</Label>
+                    <Label htmlFor="fatherOrHusbandName">
+                      Father/Husband Name
+                    </Label>
                     <Input
-                      id="patientAge"
+                      id="fatherOrHusbandName"
+                      value={formData.fatherOrHusbandName || ""}
+                      onChange={(e) =>
+                        updateFormData("fatherOrHusbandName", e.target.value)
+                      }
+                      placeholder="Enter father or husband name"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="age">Age</Label>
+                    <Input
+                      id="age"
                       type="number"
-                      value={formData.patientAge || ''}
-                      onChange={(e) => updateFormData('patientAge', parseInt(e.target.value))}
+                      value={formData.age || ""}
+                      onChange={(e) =>
+                        updateFormData(
+                          "age",
+                          parseInt(e.target.value) || undefined
+                        )
+                      }
                       placeholder="Enter age"
                       min="1"
                       max="120"
                     />
                   </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="patientGender">Gender *</Label>
-                    <Select value={formData.patientGender} onValueChange={(value) => updateFormData('patientGender', value)}>
+                    <Label htmlFor="gender">Gender</Label>
+                    <Select
+                      value={formData.gender}
+                      onValueChange={(value) => updateFormData("gender", value)}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Select gender" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="MALE">Male</SelectItem>
-                        <SelectItem value="FEMALE">Female</SelectItem>
-                        <SelectItem value="OTHER">Other</SelectItem>
+                        <SelectItem value="Male">Male</SelectItem>
+                        <SelectItem value="Female">Female</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div>
-                    <Label htmlFor="relationship">Relationship to Applicant *</Label>
-                    <Select value={formData.relationshipToApplicant} onValueChange={(value) => updateFormData('relationshipToApplicant', value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select relationship" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="SELF">Self</SelectItem>
-                        <SelectItem value="SPOUSE">Spouse</SelectItem>
-                        <SelectItem value="CHILD">Child</SelectItem>
-                        <SelectItem value="PARENT">Parent</SelectItem>
-                        <SelectItem value="SIBLING">Sibling</SelectItem>
-                        <SelectItem value="OTHER">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="applicantName">Applicant Name *</Label>
-                  <Input
-                    id="applicantName"
-                    value={formData.applicantName || ''}
-                    onChange={(e) => updateFormData('applicantName', e.target.value)}
-                    placeholder="Name of person submitting application"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="phone">Phone Number *</Label>
+                    <Label htmlFor="mobile">Mobile Number *</Label>
                     <Input
-                      id="phone"
-                      value={formData.phone || ''}
-                      onChange={(e) => updateFormData('phone', e.target.value)}
-                      placeholder="Enter phone number"
+                      id="mobile"
+                      value={formData.mobile}
+                      onChange={(e) => updateFormData("mobile", e.target.value)}
+                      placeholder="10-digit mobile"
+                      maxLength={10}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={formData.email || ""}
+                      onChange={(e) => updateFormData("email", e.target.value)}
+                      placeholder="Enter email address"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="aadhaar">Aadhaar Number (Optional)</Label>
+                    <Label htmlFor="aadhaarNumber">Aadhaar Number</Label>
                     <Input
-                      id="aadhaar"
-                      value={formData.aadhaarNumber || ''}
-                      onChange={(e) => updateFormData('aadhaarNumber', e.target.value)}
-                      placeholder="Enter Aadhaar number"
+                      id="aadhaarNumber"
+                      value={formData.aadhaarNumber || ""}
+                      onChange={(e) =>
+                        updateFormData("aadhaarNumber", e.target.value)
+                      }
+                      placeholder="12-digit Aadhaar"
                       maxLength={12}
                     />
                   </div>
                 </div>
 
                 <div>
-                  <Label htmlFor="address">Full Address *</Label>
+                  <Label htmlFor="address">Address</Label>
                   <Textarea
                     id="address"
-                    value={formData.address || ''}
-                    onChange={(e) => updateFormData('address', e.target.value)}
-                    placeholder="Enter complete address with district, mandal, and village"
+                    value={formData.address || ""}
+                    onChange={(e) => updateFormData("address", e.target.value)}
+                    placeholder="Enter full address"
                     rows={3}
                   />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div>
+                    <Label htmlFor="district">District</Label>
+                    <Input
+                      id="district"
+                      value={formData.district || ""}
+                      onChange={(e) =>
+                        updateFormData("district", e.target.value)
+                      }
+                      placeholder="District"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="mandal">Mandal</Label>
+                    <Input
+                      id="mandal"
+                      value={formData.mandal || ""}
+                      onChange={(e) => updateFormData("mandal", e.target.value)}
+                      placeholder="Mandal"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="ward">Ward/Village</Label>
+                    <Input
+                      id="ward"
+                      value={formData.ward || ""}
+                      onChange={(e) => updateFormData("ward", e.target.value)}
+                      placeholder="Ward/Village"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="pincode">Pincode</Label>
+                    <Input
+                      id="pincode"
+                      value={formData.pincode || ""}
+                      onChange={(e) =>
+                        updateFormData("pincode", e.target.value)
+                      }
+                      placeholder="Pincode"
+                      maxLength={6}
+                    />
+                  </div>
                 </div>
               </>
             )}
 
+            {/* Step 2: Relief Details */}
             {step === 2 && (
               <>
-                <div>
-                  <Label htmlFor="condition">Medical Condition *</Label>
-                  <Select value={formData.medicalCondition} onValueChange={(value) => updateFormData('medicalCondition', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select medical condition" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {conditions.map((condition) => (
-                        <SelectItem key={condition} value={condition}>{condition}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label htmlFor="diagnosis">Detailed Diagnosis *</Label>
-                  <Textarea
-                    id="diagnosis"
-                    value={formData.detailedDiagnosis || ''}
-                    onChange={(e) => updateFormData('detailedDiagnosis', e.target.value)}
-                    placeholder="Provide detailed medical diagnosis from doctor"
-                    rows={3}
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="hospital">Recommended Hospital *</Label>
-                  <Select value={formData.hospitalCode} onValueChange={(value) => updateFormData('hospitalCode', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select hospital" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {hospitals.map((hospital) => (
-                        <SelectItem key={hospital.code} value={hospital.code}>
-                          <div>
-                            <p className="font-medium">{hospital.name}</p>
-                            <p className="text-xs text-muted-foreground">{hospital.type}</p>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="doctorName">Doctor Name *</Label>
-                    <Input
-                      id="doctorName"
-                      value={formData.doctorName || ''}
-                      onChange={(e) => updateFormData('doctorName', e.target.value)}
-                      placeholder="Treating doctor's name"
-                    />
+                    <Label htmlFor="reliefType">Relief Type *</Label>
+                    <Select
+                      value={formData.reliefType}
+                      onValueChange={(value) =>
+                        updateFormData("reliefType", value)
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select relief type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="MEDICAL">Medical</SelectItem>
+                        <SelectItem value="EDUCATION">Education</SelectItem>
+                        <SelectItem value="ACCIDENT">Accident</SelectItem>
+                        <SelectItem value="NATURAL_DISASTER">
+                          Natural Disaster
+                        </SelectItem>
+                        <SelectItem value="FINANCIAL_ASSISTANCE">
+                          Financial Assistance
+                        </SelectItem>
+                        <SelectItem value="FUNERAL">Funeral</SelectItem>
+                        <SelectItem value="OTHER">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div>
-                    <Label htmlFor="urgency">Treatment Urgency *</Label>
-                    <Select value={formData.treatmentUrgency} onValueChange={(value) => updateFormData('treatmentUrgency', value)}>
+                    <Label htmlFor="urgency">Urgency</Label>
+                    <Select
+                      value={formData.urgency}
+                      onValueChange={(value) =>
+                        updateFormData("urgency", value)
+                      }
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Select urgency" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="EMERGENCY">
-                          <div className="flex items-center gap-2">
-                            <Badge variant="destructive" className="text-xs">Emergency</Badge>
-                            <span>Within 7 days</span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="URGENT">
-                          <div className="flex items-center gap-2">
-                            <Badge variant="warning" className="text-xs">Urgent</Badge>
-                            <span>Within 30 days</span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="ROUTINE">
-                          <div className="flex items-center gap-2">
-                            <Badge variant="info" className="text-xs">Routine</Badge>
-                            <span>Within 90 days</span>
-                          </div>
-                        </SelectItem>
+                        <SelectItem value="LOW">Low</SelectItem>
+                        <SelectItem value="MEDIUM">Medium</SelectItem>
+                        <SelectItem value="HIGH">High</SelectItem>
+                        <SelectItem value="CRITICAL">Critical</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
 
                 <div>
-                  <Label htmlFor="estimate">Treatment Cost Estimate *</Label>
+                  <Label htmlFor="requestedAmount">
+                    Requested Amount (₹) *
+                  </Label>
                   <Input
-                    id="estimate"
+                    id="requestedAmount"
                     type="number"
-                    value={formData.treatmentCostEstimate || ''}
-                    onChange={(e) => updateFormData('treatmentCostEstimate', parseInt(e.target.value))}
-                    placeholder="Enter estimated cost in ₹"
+                    value={formData.requestedAmount || ""}
+                    onChange={(e) =>
+                      updateFormData(
+                        "requestedAmount",
+                        parseFloat(e.target.value) || 0
+                      )
+                    }
+                    placeholder="Enter amount in rupees"
+                    min="0"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="purpose">Purpose of Relief</Label>
+                  <Textarea
+                    id="purpose"
+                    value={formData.purpose || ""}
+                    onChange={(e) => updateFormData("purpose", e.target.value)}
+                    placeholder="Explain the reason for requesting relief"
+                    rows={4}
                   />
                 </div>
               </>
             )}
 
+            {/* Step 3: Additional Information */}
             {step === 3 && (
               <>
-                <div>
-                  <Label htmlFor="incomeCategory">Income Category *</Label>
-                  <Select value={formData.incomeCategory} onValueChange={(value) => updateFormData('incomeCategory', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select income category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {incomeCategories.map((category) => (
-                        <SelectItem key={category.value} value={category.value}>
-                          <div>
-                            <p className="font-medium">{category.label}</p>
-                            <p className="text-xs text-muted-foreground">Annual limit: {category.limit}</p>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label htmlFor="annualIncome">Annual Family Income *</Label>
-                  <Input
-                    id="annualIncome"
-                    type="number"
-                    value={formData.annualFamilyIncome || ''}
-                    onChange={(e) => updateFormData('annualFamilyIncome', parseInt(e.target.value))}
-                    placeholder="Enter annual income in ₹"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="previousSupport">Previous Government Support</Label>
-                  <Textarea
-                    id="previousSupport"
-                    value={formData.previousGovernmentSupport || ''}
-                    onChange={(e) => updateFormData('previousGovernmentSupport', e.target.value)}
-                    placeholder="Details of any previous government financial support received"
-                    rows={2}
-                  />
-                </div>
-
-                <div>
-                  <Label>Supporting Documents *</Label>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="border border-dashed border-border rounded-lg p-4 text-center">
-                      <FileText className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                      <p className="text-sm font-medium mb-1">Medical Reports</p>
-                      <p className="text-xs text-muted-foreground mb-2">Doctor's reports, test results</p>
-                      <Button variant="outline" size="sm">
-                        <Upload className="h-3 w-3 mr-1" />
-                        Upload
-                      </Button>
+                {/* Medical Details (if relief type is MEDICAL) */}
+                {formData.reliefType === "MEDICAL" && (
+                  <div className="space-y-4 p-4 border rounded-lg">
+                    <h3 className="font-semibold">Medical Details</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="hospitalName">Hospital Name</Label>
+                        <Input
+                          id="hospitalName"
+                          value={formData.medicalDetails?.hospitalName || ""}
+                          onChange={(e) =>
+                            updateNestedFormData(
+                              "medicalDetails",
+                              "hospitalName",
+                              e.target.value
+                            )
+                          }
+                          placeholder="Enter hospital name"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="disease">Disease/Condition</Label>
+                        <Input
+                          id="disease"
+                          value={formData.medicalDetails?.disease || ""}
+                          onChange={(e) =>
+                            updateNestedFormData(
+                              "medicalDetails",
+                              "disease",
+                              e.target.value
+                            )
+                          }
+                          placeholder="Enter disease or condition"
+                        />
+                      </div>
                     </div>
-                    <div className="border border-dashed border-border rounded-lg p-4 text-center">
-                      <FileText className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                      <p className="text-sm font-medium mb-1">Income Proof</p>
-                      <p className="text-xs text-muted-foreground mb-2">Income certificate, ration card</p>
-                      <Button variant="outline" size="sm">
-                        <Upload className="h-3 w-3 mr-1" />
-                        Upload
-                      </Button>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="doctorName">Doctor Name</Label>
+                        <Input
+                          id="doctorName"
+                          value={formData.medicalDetails?.doctorName || ""}
+                          onChange={(e) =>
+                            updateNestedFormData(
+                              "medicalDetails",
+                              "doctorName",
+                              e.target.value
+                            )
+                          }
+                          placeholder="Enter doctor name"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="treatmentCost">
+                          Treatment Cost (₹)
+                        </Label>
+                        <Input
+                          id="treatmentCost"
+                          type="number"
+                          value={formData.medicalDetails?.treatmentCost || ""}
+                          onChange={(e) =>
+                            updateNestedFormData(
+                              "medicalDetails",
+                              "treatmentCost",
+                              parseFloat(e.target.value)
+                            )
+                          }
+                          placeholder="Enter treatment cost"
+                          min="0"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <Label htmlFor="admissionDate">Admission Date</Label>
+                      <Input
+                        id="admissionDate"
+                        type="date"
+                        value={formData.medicalDetails?.admissionDate || ""}
+                        onChange={(e) =>
+                          updateNestedFormData(
+                            "medicalDetails",
+                            "admissionDate",
+                            e.target.value
+                          )
+                        }
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Income Details */}
+                <div className="space-y-4 p-4 border rounded-lg">
+                  <h3 className="font-semibold">Income Details</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="monthlyIncome">Monthly Income (₹)</Label>
+                      <Input
+                        id="monthlyIncome"
+                        type="number"
+                        value={formData.incomeDetails?.monthlyIncome || ""}
+                        onChange={(e) =>
+                          updateNestedFormData(
+                            "incomeDetails",
+                            "monthlyIncome",
+                            parseFloat(e.target.value)
+                          )
+                        }
+                        placeholder="Enter monthly income"
+                        min="0"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="occupation">Occupation</Label>
+                      <Input
+                        id="occupation"
+                        value={formData.incomeDetails?.occupation || ""}
+                        onChange={(e) =>
+                          updateNestedFormData(
+                            "incomeDetails",
+                            "occupation",
+                            e.target.value
+                          )
+                        }
+                        placeholder="Enter occupation"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="familyMembers">Family Members</Label>
+                      <Input
+                        id="familyMembers"
+                        type="number"
+                        value={formData.incomeDetails?.familyMembers || ""}
+                        onChange={(e) =>
+                          updateNestedFormData(
+                            "incomeDetails",
+                            "familyMembers",
+                            parseInt(e.target.value)
+                          )
+                        }
+                        placeholder="Number of family members"
+                        min="1"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="dependents">Dependents</Label>
+                      <Input
+                        id="dependents"
+                        type="number"
+                        value={formData.incomeDetails?.dependents || ""}
+                        onChange={(e) =>
+                          updateNestedFormData(
+                            "incomeDetails",
+                            "dependents",
+                            parseInt(e.target.value)
+                          )
+                        }
+                        placeholder="Number of dependents"
+                        min="0"
+                      />
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 p-4 bg-warning-light border border-warning/20 rounded-lg">
-                  <AlertTriangle className="h-5 w-5 text-warning" />
+                {/* Bank Details */}
+                <div className="space-y-4 p-4 border rounded-lg">
+                  <h3 className="font-semibold">Bank Details</h3>
                   <div>
-                    <p className="text-sm font-medium">Required Documents</p>
-                    <p className="text-xs text-muted-foreground">
-                      Medical reports, income certificate, hospital estimate, and identity proof are mandatory
-                    </p>
+                    <Label htmlFor="accountHolderName">
+                      Account Holder Name
+                    </Label>
+                    <Input
+                      id="accountHolderName"
+                      value={formData.bankDetails?.accountHolderName || ""}
+                      onChange={(e) =>
+                        updateNestedFormData(
+                          "bankDetails",
+                          "accountHolderName",
+                          e.target.value
+                        )
+                      }
+                      placeholder="Enter account holder name"
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="accountNumber">Account Number</Label>
+                      <Input
+                        id="accountNumber"
+                        value={formData.bankDetails?.accountNumber || ""}
+                        onChange={(e) =>
+                          updateNestedFormData(
+                            "bankDetails",
+                            "accountNumber",
+                            e.target.value
+                          )
+                        }
+                        placeholder="Enter account number"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="ifscCode">IFSC Code</Label>
+                      <Input
+                        id="ifscCode"
+                        value={formData.bankDetails?.ifscCode || ""}
+                        onChange={(e) =>
+                          updateNestedFormData(
+                            "bankDetails",
+                            "ifscCode",
+                            e.target.value
+                          )
+                        }
+                        placeholder="Enter IFSC code"
+                        maxLength={11}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="bankName">Bank Name</Label>
+                      <Input
+                        id="bankName"
+                        value={formData.bankDetails?.bankName || ""}
+                        onChange={(e) =>
+                          updateNestedFormData(
+                            "bankDetails",
+                            "bankName",
+                            e.target.value
+                          )
+                        }
+                        placeholder="Enter bank name"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="branchName">Branch Name</Label>
+                      <Input
+                        id="branchName"
+                        value={formData.bankDetails?.branchName || ""}
+                        onChange={(e) =>
+                          updateNestedFormData(
+                            "bankDetails",
+                            "branchName",
+                            e.target.value
+                          )
+                        }
+                        placeholder="Enter branch name"
+                      />
+                    </div>
                   </div>
                 </div>
               </>
             )}
 
+            {/* Step 4: Review */}
             {step === 4 && (
-              <div className="space-y-6">
-                <div className="p-4 bg-gradient-card border border-border rounded-lg">
-                  <h3 className="font-semibold mb-4">CMRF Application Summary</h3>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="text-muted-foreground">Patient:</span>
-                      <p className="font-medium">{formData.patientName}</p>
-                      <p className="text-xs text-muted-foreground">{formData.patientAge} years, {formData.patientGender}</p>
+              <div className="space-y-4">
+                <div className="p-4 bg-muted rounded-lg">
+                  <h3 className="font-semibold mb-4">Application Summary</h3>
+
+                  <div className="space-y-3 text-sm">
+                    <div className="grid grid-cols-2 gap-2">
+                      <span className="text-muted-foreground">
+                        Applicant Name:
+                      </span>
+                      <span className="font-medium">
+                        {formData.applicantName}
+                      </span>
                     </div>
-                    <div>
-                      <span className="text-muted-foreground">Applicant:</span>
-                      <p className="font-medium">{formData.applicantName}</p>
-                      <p className="text-xs text-muted-foreground">{formData.relationshipToApplicant}</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <span className="text-muted-foreground">Mobile:</span>
+                      <span className="font-medium">{formData.mobile}</span>
                     </div>
-                    <div>
-                      <span className="text-muted-foreground">Condition:</span>
-                      <p className="font-medium">{formData.medicalCondition}</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <span className="text-muted-foreground">
+                        Relief Type:
+                      </span>
+                      <span className="font-medium">{formData.reliefType}</span>
                     </div>
-                    <div>
-                      <span className="text-muted-foreground">Hospital:</span>
-                      <p className="font-medium">{selectedHospital?.name}</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <span className="text-muted-foreground">
+                        Requested Amount:
+                      </span>
+                      <span className="font-medium">
+                        ₹{formData.requestedAmount.toLocaleString()}
+                      </span>
                     </div>
-                    <div>
-                      <span className="text-muted-foreground">Cost Estimate:</span>
-                      <p className="font-medium">₹{formData.treatmentCostEstimate?.toLocaleString()}</p>
-                    </div>
-                    <div>
+                    <div className="grid grid-cols-2 gap-2">
                       <span className="text-muted-foreground">Urgency:</span>
-                      <Badge variant={
-                        formData.treatmentUrgency === 'EMERGENCY' ? 'destructive' :
-                        formData.treatmentUrgency === 'URGENT' ? 'warning' : 'info'
-                      }>
-                        {formData.treatmentUrgency}
-                      </Badge>
+                      <span className="font-medium">{formData.urgency}</span>
                     </div>
-                    <div>
-                      <span className="text-muted-foreground">Income Category:</span>
-                      <p className="font-medium">{selectedIncomeCategory?.label}</p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Annual Income:</span>
-                      <p className="font-medium">₹{formData.annualFamilyIncome?.toLocaleString()}</p>
-                    </div>
-                    <div className="col-span-2">
-                      <span className="text-muted-foreground">Phone:</span>
-                      <p className="font-medium">{formData.phone}</p>
-                    </div>
+                    {formData.purpose && (
+                      <div className="grid grid-cols-2 gap-2">
+                        <span className="text-muted-foreground">Purpose:</span>
+                        <span className="font-medium">{formData.purpose}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 p-4 bg-info-light border border-info/20 rounded-lg">
-                  <Heart className="h-5 w-5 text-info" />
-                  <div>
-                    <p className="text-sm font-medium">Application Process</p>
-                    <p className="text-xs text-muted-foreground">
-                      Your application will undergo document verification, medical review, and approval process. SMS updates will be sent.
-                    </p>
-                  </div>
+                <div className="p-4 bg-info-light border border-info/20 rounded-lg">
+                  <p className="text-sm">
+                    Please review all details carefully before submitting. Once
+                    submitted, your application will be reviewed by our team.
+                  </p>
                 </div>
               </div>
             )}
 
+            {/* Navigation Buttons */}
             <div className="flex justify-between pt-6">
               <Button
                 variant="outline"
                 onClick={handlePrevious}
-                disabled={step === 1}
+                disabled={step === 1 || loading}
               >
                 Previous
               </Button>
-              
+
               {step < 4 ? (
-                <Button onClick={handleNext}>
-                  Next
-                </Button>
+                <Button onClick={handleNext}>Next</Button>
               ) : (
-                <Button variant="government" onClick={handleSubmit}>
-                  Submit Application
+                <Button onClick={handleSubmit} disabled={loading}>
+                  {loading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    "Submit Application"
+                  )}
                 </Button>
               )}
             </div>

@@ -1,158 +1,207 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { RecordList } from '@/components/shared/RecordList';
-import { StatusBadge } from '@/components/StatusBadge';
-import { Badge } from '@/components/ui/badge';
-import { formatDistanceToNow } from 'date-fns';
-
-const mockPrograms = [
-  {
-    id: 'PRG-AP-NLR-2025-000001',
-    event_name: 'Mega Job Mela - IT Sector',
-    type: 'job_mela',
-    date_range: '2025-02-15 to 2025-02-17',
-    venue: 'Vijayawada Convention Center',
-    partners: ['TCS', 'Infosys', 'Wipro'],
-    registrations: 2500,
-    status: 'REGISTRATION',
-    created_at: '2025-01-15T10:00:00Z',
-  },
-  {
-    id: 'PRG-AP-NLR-2025-000002',
-    event_name: 'Skill Development Program',
-    type: 'program',
-    date_range: '2025-03-01 to 2025-03-05',
-    venue: 'Nellore Technical Institute',
-    partners: ['NASSCOM', 'FICCI'],
-    registrations: 150,
-    status: 'PLANNED',
-    created_at: '2025-01-16T14:30:00Z',
-  },
-];
+import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { RecordList } from "@/components/shared/RecordList";
+import { StatusBadge } from "@/components/StatusBadge";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
+import { formatDistanceToNow, format } from "date-fns";
+import { programAPI } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 
 const columns = [
   {
-    key: 'id',
-    label: 'ID',
+    key: "programId",
+    label: "ID",
     sortable: true,
     render: (value: string) => (
       <span className="font-mono text-sm text-primary">{value}</span>
     ),
   },
   {
-    key: 'event_name',
-    label: 'Event Name',
+    key: "eventName",
+    label: "Event Name",
     sortable: true,
   },
   {
-    key: 'type',
-    label: 'Type',
+    key: "type",
+    label: "Type",
     sortable: true,
     render: (value: string) => (
-      <Badge variant={value === 'job_mela' ? 'default' : 'secondary'}>
-        {value.replace('_', ' ').toUpperCase()}
+      <Badge variant={value === "JOB_MELA" ? "default" : "secondary"}>
+        {value.replace("_", " ")}
       </Badge>
     ),
   },
   {
-    key: 'date_range',
-    label: 'Date Range',
+    key: "startDate",
+    label: "Start Date",
+    sortable: true,
+    render: (value: string) =>
+      value ? format(new Date(value), "MMM dd, yyyy") : "N/A",
+  },
+  {
+    key: "venue",
+    label: "Venue",
     sortable: true,
   },
   {
-    key: 'venue',
-    label: 'Venue',
-    sortable: true,
-  },
-  {
-    key: 'partners',
-    label: 'Partners',
+    key: "partners",
+    label: "Partners",
     render: (value: string[]) => (
       <div className="flex flex-wrap gap-1">
-        {value.slice(0, 2).map(partner => (
-          <Badge key={partner} variant="outline" className="text-xs">
-            {partner}
-          </Badge>
-        ))}
-        {value.length > 2 && (
-          <Badge variant="outline" className="text-xs">
-            +{value.length - 2} more
-          </Badge>
+        {value && value.length > 0 ? (
+          <>
+            {value.slice(0, 2).map((partner) => (
+              <Badge key={partner} variant="outline" className="text-xs">
+                {partner}
+              </Badge>
+            ))}
+            {value.length > 2 && (
+              <Badge variant="outline" className="text-xs">
+                +{value.length - 2} more
+              </Badge>
+            )}
+          </>
+        ) : (
+          <span className="text-sm text-muted-foreground">N/A</span>
         )}
       </div>
     ),
   },
   {
-    key: 'registrations',
-    label: 'Registrations',
-    render: (value: number) => (
-      <Badge variant="secondary">{value}</Badge>
-    ),
+    key: "registrations",
+    label: "Registrations",
+    render: (value: number) => <Badge variant="secondary">{value || 0}</Badge>,
   },
   {
-    key: 'status',
-    label: 'Status',
+    key: "status",
+    label: "Status",
     render: (value: string) => <StatusBadge status={value} />,
   },
   {
-    key: 'created_at',
-    label: 'Age',
-    render: (value: string) => formatDistanceToNow(new Date(value), { addSuffix: true }),
+    key: "createdAt",
+    label: "Age",
+    render: (value: string) =>
+      formatDistanceToNow(new Date(value), { addSuffix: true }),
   },
 ];
 
 const filters = [
   {
-    key: 'type',
-    label: 'Type',
-    type: 'select' as const,
+    key: "type",
+    label: "Type",
+    type: "select" as const,
     options: [
-      { value: 'job_mela', label: 'Job Mela' },
-      { value: 'program', label: 'Program' },
+      { value: "JOB_MELA", label: "Job Mela" },
+      { value: "PROGRAM", label: "Program" },
+      { value: "TRAINING", label: "Training" },
+      { value: "WORKSHOP", label: "Workshop" },
+      { value: "SEMINAR", label: "Seminar" },
+      { value: "OTHER", label: "Other" },
     ],
   },
   {
-    key: 'venue',
-    label: 'Venue',
-    type: 'select' as const,
+    key: "venue",
+    label: "Venue",
+    type: "select" as const,
     options: [
-      { value: 'Vijayawada Convention Center', label: 'Vijayawada Convention Center' },
-      { value: 'Nellore Technical Institute', label: 'Nellore Technical Institute' },
-      { value: 'Tirupati Auditorium', label: 'Tirupati Auditorium' },
+      {
+        value: "Vijayawada Convention Center",
+        label: "Vijayawada Convention Center",
+      },
+      {
+        value: "Nellore Technical Institute",
+        label: "Nellore Technical Institute",
+      },
+      { value: "Tirupati Auditorium", label: "Tirupati Auditorium" },
     ],
   },
   {
-    key: 'status',
-    label: 'Status',
-    type: 'select' as const,
+    key: "status",
+    label: "Status",
+    type: "select" as const,
     options: [
-      { value: 'PLANNED', label: 'Planned' },
-      { value: 'REGISTRATION', label: 'Registration Open' },
-      { value: 'SCREENING', label: 'Screening' },
-      { value: 'SELECTION', label: 'Selection' },
-      { value: 'OFFER', label: 'Offer Phase' },
-      { value: 'JOINED', label: 'Joined' },
-      { value: 'REPORTING_CLOSED', label: 'Reporting Closed' },
+      { value: "PLANNED", label: "Planned" },
+      { value: "REGISTRATION", label: "Registration Open" },
+      { value: "REGISTRATION_CLOSED", label: "Registration Closed" },
+      { value: "SCREENING", label: "Screening" },
+      { value: "SELECTION", label: "Selection" },
+      { value: "OFFER", label: "Offer Phase" },
+      { value: "JOINED", label: "Joined" },
+      { value: "ONGOING", label: "Ongoing" },
+      { value: "COMPLETED", label: "Completed" },
+      { value: "CANCELLED", label: "Cancelled" },
+      { value: "POSTPONED", label: "Postponed" },
+    ],
+  },
+  {
+    key: "district",
+    label: "District",
+    type: "select" as const,
+    options: [
+      { value: "Nellore", label: "Nellore" },
+      { value: "Tirupati", label: "Tirupati" },
+      { value: "Vijayawada", label: "Vijayawada" },
+      { value: "Visakhapatnam", label: "Visakhapatnam" },
     ],
   },
 ];
 
 const savedViews = [
-  { id: 'upcoming-events', name: 'Upcoming Events', filters: {} },
-  { id: 'high-registrations', name: 'High Registrations (>1000)', filters: {} },
-  { id: 'job-melas-only', name: 'Job Melas Only', filters: {} },
+  {
+    id: "upcoming-events",
+    name: "Upcoming Events",
+    filters: { status: "PLANNED" },
+  },
+  {
+    id: "high-registrations",
+    name: "High Registrations (>1000)",
+    filters: {},
+  },
+  {
+    id: "job-melas-only",
+    name: "Job Melas Only",
+    filters: { type: "JOB_MELA" },
+  },
 ];
 
 export default function Programs() {
   const navigate = useNavigate();
-  const [data, setData] = useState(mockPrograms);
+  const { toast } = useToast();
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleRowClick = (record: any) => {
-    navigate(`/admin/programs/${record.id}`);
+  const fetchPrograms = useCallback(
+    async (params?: Record<string, string>) => {
+      try {
+        setLoading(true);
+        const response = await programAPI.getAll(params);
+        setData(response.data || []);
+      } catch (error: unknown) {
+        console.error("Error fetching programs:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load programs",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    },
+    [toast]
+  );
+
+  useEffect(() => {
+    fetchPrograms();
+  }, [fetchPrograms]);
+
+  const handleRowClick = (record: Record<string, unknown>) => {
+    navigate(`/admin/programs/${record.programId || record._id}`);
   };
 
   const handleNew = () => {
-    navigate('/admin/programs/new');
+    navigate("/admin/programs/new");
   };
 
   const handleBatchAction = (action: string, selectedIds: string[]) => {
@@ -161,18 +210,30 @@ export default function Programs() {
   };
 
   return (
-    <RecordList
-      title="Programs & Job Melas"
-      data={data}
-      columns={columns}
-      filters={filters}
-      savedViews={savedViews}
-      loading={false}
-      onRowClick={handleRowClick}
-      onNew={handleNew}
-      onBatchAction={handleBatchAction}
-      newButtonText="New Program/Event"
-      searchPlaceholder="Search by ID, event name..."
-    />
+    <div className="space-y-6 p-6">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => navigate("/admin/dashboard")}
+        className="flex items-center gap-2"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back
+      </Button>
+
+      <RecordList
+        title="Programs & Job Melas"
+        data={data}
+        columns={columns}
+        filters={filters}
+        savedViews={savedViews}
+        loading={loading}
+        onRowClick={handleRowClick}
+        onNew={handleNew}
+        onBatchAction={handleBatchAction}
+        newButtonText="New Program/Event"
+        searchPlaceholder="Search by ID, event name..."
+      />
+    </div>
   );
 }

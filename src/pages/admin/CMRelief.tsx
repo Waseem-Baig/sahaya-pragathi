@@ -1,163 +1,221 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { RecordList } from '@/components/shared/RecordList';
-import { StatusBadge } from '@/components/StatusBadge';
-import { Badge } from '@/components/ui/badge';
-import { formatDistanceToNow } from 'date-fns';
+import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { RecordList } from "@/components/shared/RecordList";
+import { StatusBadge } from "@/components/StatusBadge";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { cmReliefAPI } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 
-const mockCMReliefFund = [
-  {
-    id: 'CMR-AP-NLR-2025-000001',
-    patient_name: 'Ramesh Kumar',
-    mobile: '9876543210',
-    hospital_name: 'SVIMS Tirupati',
-    illness_diagnosis: 'Heart Surgery',
-    estimated_cost: 500000,
-    sanctioned_amount: 300000,
-    status: 'SANCTIONED',
-    district: 'Nellore',
-    created_at: '2025-01-15T10:00:00Z',
-  },
-  {
-    id: 'CMR-AP-NLR-2025-000002',
-    patient_name: 'Lakshmi Devi',
-    mobile: '9876543211',
-    hospital_name: 'KIMS Nellore',
-    illness_diagnosis: 'Kidney Treatment',
-    estimated_cost: 300000,
-    sanctioned_amount: null,
-    status: 'DOCS_VERIFIED',
-    district: 'Nellore',
-    created_at: '2025-01-16T14:30:00Z',
-  },
-];
+interface CMReliefRecord {
+  id: string;
+  patient_name: string;
+  mobile: string;
+  hospital_name: string;
+  illness_diagnosis: string;
+  estimated_cost: number;
+  sanctioned_amount: number | null;
+  status: string;
+  district: string;
+  created_at: string;
+}
 
 const columns = [
   {
-    key: 'id',
-    label: 'ID',
+    key: "id",
+    label: "ID",
     sortable: true,
     render: (value: string) => (
       <span className="font-mono text-sm text-primary">{value}</span>
     ),
   },
   {
-    key: 'patient_name',
-    label: 'Patient',
+    key: "patient_name",
+    label: "Patient",
     sortable: true,
   },
   {
-    key: 'hospital_name',
-    label: 'Hospital',
+    key: "hospital_name",
+    label: "Hospital",
     sortable: true,
   },
   {
-    key: 'illness_diagnosis',
-    label: 'Diagnosis',
+    key: "illness_diagnosis",
+    label: "Diagnosis",
     sortable: true,
-    render: (value: string) => (
-      <Badge variant="outline">{value}</Badge>
-    ),
+    render: (value: string) => <Badge variant="outline">{value}</Badge>,
   },
   {
-    key: 'estimated_cost',
-    label: 'Estimated Cost',
+    key: "estimated_cost",
+    label: "Estimated Cost",
     render: (value: number) => `₹${value?.toLocaleString() || 0}`,
   },
   {
-    key: 'sanctioned_amount',
-    label: 'Sanctioned',
-    render: (value: number) => value ? `₹${value.toLocaleString()}` : 'Pending',
+    key: "sanctioned_amount",
+    label: "Sanctioned",
+    render: (value: number) =>
+      value ? `₹${value.toLocaleString()}` : "Pending",
   },
   {
-    key: 'status',
-    label: 'Status',
+    key: "status",
+    label: "Status",
     render: (value: string) => <StatusBadge status={value} />,
   },
   {
-    key: 'district',
-    label: 'District',
+    key: "district",
+    label: "District",
     sortable: true,
   },
   {
-    key: 'created_at',
-    label: 'Age',
-    render: (value: string) => formatDistanceToNow(new Date(value), { addSuffix: true }),
+    key: "created_at",
+    label: "Age",
+    render: (value: string) =>
+      formatDistanceToNow(new Date(value), { addSuffix: true }),
   },
 ];
 
 const filters = [
   {
-    key: 'district',
-    label: 'District',
-    type: 'select' as const,
+    key: "district",
+    label: "District",
+    type: "select" as const,
     options: [
-      { value: 'Nellore', label: 'Nellore' },
-      { value: 'Tirupati', label: 'Tirupati' },
-      { value: 'Vijayawada', label: 'Vijayawada' },
+      { value: "Nellore", label: "Nellore" },
+      { value: "Tirupati", label: "Tirupati" },
+      { value: "Vijayawada", label: "Vijayawada" },
     ],
   },
   {
-    key: 'hospital_name',
-    label: 'Hospital',
-    type: 'select' as const,
+    key: "hospital_name",
+    label: "Hospital",
+    type: "select" as const,
     options: [
-      { value: 'SVIMS Tirupati', label: 'SVIMS Tirupati' },
-      { value: 'KIMS Nellore', label: 'KIMS Nellore' },
-      { value: 'AIIMS Mangalagiri', label: 'AIIMS Mangalagiri' },
+      { value: "SVIMS Tirupati", label: "SVIMS Tirupati" },
+      { value: "KIMS Nellore", label: "KIMS Nellore" },
+      { value: "AIIMS Mangalagiri", label: "AIIMS Mangalagiri" },
     ],
   },
   {
-    key: 'status',
-    label: 'Status',
-    type: 'select' as const,
+    key: "status",
+    label: "Status",
+    type: "select" as const,
     options: [
-      { value: 'INTAKE', label: 'Intake' },
-      { value: 'DOCS_VERIFIED', label: 'Documents Verified' },
-      { value: 'SANCTION_REQUESTED', label: 'Sanction Requested' },
-      { value: 'SANCTIONED', label: 'Sanctioned' },
-      { value: 'DISBURSED', label: 'Disbursed' },
-      { value: 'CLOSED', label: 'Closed' },
+      { value: "REQUESTED", label: "Requested" },
+      { value: "UNDER_REVIEW", label: "Under Review" },
+      { value: "VERIFICATION_PENDING", label: "Verification Pending" },
+      { value: "APPROVED", label: "Approved" },
+      { value: "REJECTED", label: "Rejected" },
+      { value: "AMOUNT_DISBURSED", label: "Amount Disbursed" },
+      { value: "COMPLETED", label: "Completed" },
+      { value: "CANCELLED", label: "Cancelled" },
     ],
   },
 ];
 
 const savedViews = [
-  { id: 'pending-sanction', name: 'Pending Sanction', filters: {} },
-  { id: 'high-amount', name: 'High Amount (>5L)', filters: {} },
-  { id: 'disbursement-due', name: 'Disbursement Due', filters: {} },
+  { id: "pending-sanction", name: "Pending Sanction", filters: {} },
+  { id: "high-amount", name: "High Amount (>5L)", filters: {} },
+  { id: "disbursement-due", name: "Disbursement Due", filters: {} },
 ];
 
 export default function CMRelief() {
   const navigate = useNavigate();
-  const [data, setData] = useState(mockCMReliefFund);
+  const { toast } = useToast();
+  const [data, setData] = useState<CMReliefRecord[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleRowClick = (record: any) => {
-    navigate(`/admin/cm-relief/${record.id}`);
-  };
+  const fetchCMReliefRequests = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await cmReliefAPI.getAll();
 
-  const handleNew = () => {
-    navigate('/admin/cm-relief/new');
-  };
+      if (response.success && response.data) {
+        // Transform backend data to frontend format
+        const transformedData = response.data.map(
+          (item: Record<string, unknown>) => ({
+            id: (item.cmrfId as string) || (item._id as string),
+            patient_name: (item.applicantName as string) || "N/A",
+            mobile: (item.mobile as string) || "N/A",
+            hospital_name:
+              ((item.medicalDetails as Record<string, unknown>)
+                ?.hospitalName as string) || "N/A",
+            illness_diagnosis:
+              ((item.medicalDetails as Record<string, unknown>)
+                ?.disease as string) ||
+              (item.purpose as string) ||
+              "N/A",
+            estimated_cost: (item.requestedAmount as number) || 0,
+            sanctioned_amount: (item.approvedAmount as number) || null,
+            status: (item.status as string) || "REQUESTED",
+            district: (item.district as string) || "N/A",
+            created_at: (item.createdAt as string) || new Date().toISOString(),
+          })
+        );
 
-  const handleBatchAction = (action: string, selectedIds: string[]) => {
-    console.log(`Batch ${action} for:`, selectedIds);
-    // Handle batch actions here
-  };
+        setData(transformedData);
+      }
+    } catch (error) {
+      console.error("Error fetching CM Relief requests:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load CM Relief requests. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    fetchCMReliefRequests();
+  }, [fetchCMReliefRequests]);
+
+  const handleRowClick = useCallback(
+    (record: Record<string, unknown>) => {
+      navigate(`/admin/cm-relief/${record.id}`);
+    },
+    [navigate]
+  );
+
+  const handleNew = useCallback(() => {
+    navigate("/admin/cm-relief/new");
+  }, [navigate]);
+
+  const handleBatchAction = useCallback(
+    (action: string, selectedIds: string[]) => {
+      console.log(`Batch ${action} for:`, selectedIds);
+      // Handle batch actions here
+    },
+    []
+  );
 
   return (
-    <RecordList
-      title="CM Relief Fund"
-      data={data}
-      columns={columns}
-      filters={filters}
-      savedViews={savedViews}
-      loading={false}
-      onRowClick={handleRowClick}
-      onNew={handleNew}
-      onBatchAction={handleBatchAction}
-      newButtonText="New CM Relief Request"
-      searchPlaceholder="Search by ID, patient name..."
-    />
+    <div className="space-y-6 p-6">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => navigate("/admin/dashboard")}
+        className="flex items-center gap-2"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back
+      </Button>
+
+      <RecordList
+        title="CM Relief Fund"
+        data={data}
+        columns={columns}
+        filters={filters}
+        savedViews={savedViews}
+        loading={loading}
+        onRowClick={handleRowClick}
+        onNew={handleNew}
+        onBatchAction={handleBatchAction}
+        newButtonText="New CM Relief Request"
+        searchPlaceholder="Search by ID, patient name..."
+      />
+    </div>
   );
 }

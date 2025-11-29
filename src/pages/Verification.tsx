@@ -1,16 +1,34 @@
-import { TwoStageVerification } from '@/components/verification/TwoStageVerification';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Shield, FileCheck, Users } from 'lucide-react';
+import { useNavigate } from "react-router-dom";
+import { TwoStageVerification } from "@/components/verification/TwoStageVerification";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Shield, FileCheck, Users, ArrowLeft } from "lucide-react";
 
 interface VerificationPageProps {
-  userRole: 'L1_MASTER_ADMIN' | 'L2_EXEC_ADMIN';
+  userRole: "L1_MASTER_ADMIN" | "L2_EXEC_ADMIN";
   userId?: string;
 }
 
-export default function Verification({ userRole = 'L2_EXEC_ADMIN', userId = 'current-user' }: VerificationPageProps) {
+export default function Verification({
+  userRole = "L2_EXEC_ADMIN",
+  userId = "current-user",
+}: VerificationPageProps) {
+  const navigate = useNavigate();
+
   return (
     <div className="space-y-6 p-6">
+      {/* Back Button */}
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => navigate("/")}
+        className="flex items-center gap-2"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back
+      </Button>
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -19,8 +37,12 @@ export default function Verification({ userRole = 'L2_EXEC_ADMIN', userId = 'cur
             Two-stage verification process for all citizen portal submissions
           </p>
         </div>
-        <Badge variant={userRole === 'L1_MASTER_ADMIN' ? 'default' : 'secondary'}>
-          {userRole === 'L1_MASTER_ADMIN' ? 'Stage 2 Reviewer' : 'Stage 1 Reviewer'}
+        <Badge
+          variant={userRole === "L1_MASTER_ADMIN" ? "default" : "secondary"}
+        >
+          {userRole === "L1_MASTER_ADMIN"
+            ? "Stage 2 Reviewer"
+            : "Stage 1 Reviewer"}
         </Badge>
       </div>
 
@@ -35,7 +57,8 @@ export default function Verification({ userRole = 'L2_EXEC_ADMIN', userId = 'cur
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">
-              Executive Admins perform initial document review, validation, and preliminary approval
+              Executive Admins perform initial document review, validation, and
+              preliminary approval
             </p>
           </CardContent>
         </Card>
@@ -49,7 +72,8 @@ export default function Verification({ userRole = 'L2_EXEC_ADMIN', userId = 'cur
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">
-              Master Admins provide final review and approval for complete verification
+              Master Admins provide final review and approval for complete
+              verification
             </p>
           </CardContent>
         </Card>
@@ -63,7 +87,8 @@ export default function Verification({ userRole = 'L2_EXEC_ADMIN', userId = 'cur
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">
-              Dual verification ensures accuracy, compliance, and maintains audit trail
+              Dual verification ensures accuracy, compliance, and maintains
+              audit trail
             </p>
           </CardContent>
         </Card>
@@ -77,27 +102,43 @@ export default function Verification({ userRole = 'L2_EXEC_ADMIN', userId = 'cur
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="text-center p-4 border rounded-lg">
-              <div className="w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center mx-auto mb-2 text-sm font-bold">1</div>
+              <div className="w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center mx-auto mb-2 text-sm font-bold">
+                1
+              </div>
               <h4 className="font-medium text-sm">Document Upload</h4>
-              <p className="text-xs text-muted-foreground mt-1">Citizens upload required documents</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Citizens upload required documents
+              </p>
             </div>
-            
+
             <div className="text-center p-4 border rounded-lg">
-              <div className="w-8 h-8 bg-info text-info-foreground rounded-full flex items-center justify-center mx-auto mb-2 text-sm font-bold">2</div>
+              <div className="w-8 h-8 bg-info text-info-foreground rounded-full flex items-center justify-center mx-auto mb-2 text-sm font-bold">
+                2
+              </div>
               <h4 className="font-medium text-sm">Stage 1 Review</h4>
-              <p className="text-xs text-muted-foreground mt-1">Executive Admin validates documents</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Executive Admin validates documents
+              </p>
             </div>
-            
+
             <div className="text-center p-4 border rounded-lg">
-              <div className="w-8 h-8 bg-warning text-warning-foreground rounded-full flex items-center justify-center mx-auto mb-2 text-sm font-bold">3</div>
+              <div className="w-8 h-8 bg-warning text-warning-foreground rounded-full flex items-center justify-center mx-auto mb-2 text-sm font-bold">
+                3
+              </div>
               <h4 className="font-medium text-sm">Stage 2 Review</h4>
-              <p className="text-xs text-muted-foreground mt-1">Master Admin final approval</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Master Admin final approval
+              </p>
             </div>
-            
+
             <div className="text-center p-4 border rounded-lg">
-              <div className="w-8 h-8 bg-success text-success-foreground rounded-full flex items-center justify-center mx-auto mb-2 text-sm font-bold">4</div>
+              <div className="w-8 h-8 bg-success text-success-foreground rounded-full flex items-center justify-center mx-auto mb-2 text-sm font-bold">
+                4
+              </div>
               <h4 className="font-medium text-sm">Case Completion</h4>
-              <p className="text-xs text-muted-foreground mt-1">Verified case ready for processing</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Verified case ready for processing
+              </p>
             </div>
           </div>
         </CardContent>

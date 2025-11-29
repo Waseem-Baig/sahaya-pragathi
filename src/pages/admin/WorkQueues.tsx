@@ -1,178 +1,281 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { RecordList } from '@/components/shared/RecordList';
-import { StatusBadge } from '@/components/StatusBadge';
-import { SLAClock } from '@/components/shared/SLAClock';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { formatDistanceToNow } from 'date-fns';
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { RecordList } from "@/components/shared/RecordList";
+import { StatusBadge } from "@/components/StatusBadge";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ArrowLeft } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
+import {
+  educationAPI,
+  csrIndustrialAPI,
+  appointmentAPI,
+  programAPI,
+} from "@/lib/api";
 
-const mockWorkItems = [
-  {
-    id: 'GRV-AP-NLR-2025-000001',
-    type: 'Grievance',
-    title: 'Water supply issue',
-    applicant: 'Ravi Kumar',
-    category: 'Water Supply',
-    district: 'Nellore',
-    assigned_to: 'Priya Sharma',
-    status: 'IN_PROGRESS',
-    priority: 'P2',
-    sla_due_at: '2025-01-20T10:00:00Z',
-    created_at: '2025-01-15T10:00:00Z',
-    needs_approval: false,
-  },
-  {
-    id: 'CMR-AP-NLR-2025-000001',
-    type: 'CM Relief Fund',
-    title: 'Heart Surgery - Ramesh Kumar',
-    applicant: 'Ramesh Kumar',
-    category: 'Medical',
-    district: 'Nellore',
-    assigned_to: 'Current User',
-    status: 'SANCTION_REQUESTED',
-    priority: 'P1',
-    sla_due_at: '2025-01-18T10:00:00Z',
-    created_at: '2025-01-15T10:00:00Z',
-    needs_approval: true,
-  },
-];
+interface WorkItem {
+  id: string;
+  type: string;
+  title: string;
+  applicant: string;
+  status: string;
+  priority?: string;
+  created_at: string;
+  needs_approval: boolean;
+}
 
 const allColumns = [
   {
-    key: 'id',
-    label: 'ID',
+    key: "id",
+    label: "ID",
     sortable: true,
-    render: (value: string, record: any) => (
+    render: (value: string, record: Record<string, unknown>) => (
       <div className="space-y-1">
         <span className="font-mono text-sm text-primary">{value}</span>
         <Badge variant="outline" className="text-xs">
-          {record.type}
+          {record.type as string}
         </Badge>
       </div>
     ),
   },
   {
-    key: 'title',
-    label: 'Title',
+    key: "title",
+    label: "Title",
     sortable: true,
   },
   {
-    key: 'applicant',
-    label: 'Citizen/Party',
+    key: "applicant",
+    label: "Citizen/Party",
     sortable: true,
   },
   {
-    key: 'category',
-    label: 'Category',
+    key: "category",
+    label: "Category",
     sortable: true,
-    render: (value: string) => (
-      <Badge variant="outline">{value}</Badge>
-    ),
+    render: (value: string) => <Badge variant="outline">{value}</Badge>,
   },
   {
-    key: 'district',
-    label: 'District',
+    key: "district",
+    label: "District",
     sortable: true,
   },
   {
-    key: 'assigned_to',
-    label: 'Assigned To',
-    render: (value: string) => value || 'Unassigned',
+    key: "assigned_to",
+    label: "Assigned To",
+    render: (value: string) => value || "Unassigned",
   },
   {
-    key: 'status',
-    label: 'Status',
+    key: "status",
+    label: "Status",
     render: (value: string) => <StatusBadge status={value} />,
   },
   {
-    key: 'sla_due_at',
-    label: 'SLA Due',
-    render: (value: string) => value ? <SLAClock dueDate={value} /> : '-',
-  },
-  {
-    key: 'created_at',
-    label: 'Age',
-    render: (value: string) => formatDistanceToNow(new Date(value), { addSuffix: true }),
+    key: "created_at",
+    label: "Created",
+    render: (value: string) =>
+      value ? formatDistanceToNow(new Date(value), { addSuffix: true }) : "-",
   },
 ];
 
 const filters = [
   {
-    key: 'type',
-    label: 'Type',
-    type: 'select' as const,
+    key: "type",
+    label: "Type",
+    type: "select" as const,
     options: [
-      { value: 'Grievance', label: 'Grievance' },
-      { value: 'Dispute', label: 'Dispute' },
-      { value: 'Temple Letter', label: 'Temple Letter' },
-      { value: 'CM Relief Fund', label: 'CM Relief Fund' },
-      { value: 'Education Support', label: 'Education Support' },
-      { value: 'CSR Industrial', label: 'CSR Industrial' },
-      { value: 'Appointment', label: 'Appointment' },
+      { value: "Education Support", label: "Education Support" },
+      { value: "CSR Industrial", label: "CSR Industrial" },
+      { value: "Appointment", label: "Appointment" },
+      { value: "Program", label: "Program/Job Mela" },
     ],
   },
   {
-    key: 'district',
-    label: 'District',
-    type: 'select' as const,
+    key: "status",
+    label: "Status",
+    type: "select" as const,
     options: [
-      { value: 'Nellore', label: 'Nellore' },
-      { value: 'Tirupati', label: 'Tirupati' },
-      { value: 'Vijayawada', label: 'Vijayawada' },
-    ],
-  },
-  {
-    key: 'status',
-    label: 'Status',
-    type: 'select' as const,
-    options: [
-      { value: 'NEW', label: 'New' },
-      { value: 'IN_PROGRESS', label: 'In Progress' },
-      { value: 'SANCTION_REQUESTED', label: 'Needs Approval' },
-      { value: 'RESOLVED', label: 'Resolved' },
-    ],
-  },
-  {
-    key: 'priority',
-    label: 'Priority',
-    type: 'select' as const,
-    options: [
-      { value: 'P1', label: 'P1 - Critical' },
-      { value: 'P2', label: 'P2 - High' },
-      { value: 'P3', label: 'P3 - Medium' },
-      { value: 'P4', label: 'P4 - Low' },
+      { value: "PENDING", label: "Pending" },
+      { value: "IN_PROGRESS", label: "In Progress" },
+      { value: "APPROVED", label: "Approved" },
+      { value: "COMPLETED", label: "Completed" },
+      { value: "CONFIRMED", label: "Confirmed" },
     ],
   },
 ];
 
 const savedViews = [
-  { id: 'sla-breach', name: 'SLA Breach Risk', filters: {} },
-  { id: 'high-priority', name: 'High Priority (P1-P2)', filters: {} },
-  { id: 'unassigned', name: 'Unassigned Items', filters: {} },
+  {
+    id: "pending",
+    name: "Pending Items",
+    filters: { status: "PENDING" },
+  },
+  {
+    id: "in-progress",
+    name: "In Progress",
+    filters: { status: "IN_PROGRESS" },
+  },
 ];
 
 export default function WorkQueues() {
   const navigate = useNavigate();
-  const [data] = useState(mockWorkItems);
+  const { toast } = useToast();
+  const [data, setData] = useState<WorkItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleRowClick = (record: any) => {
-    const type = record.type.toLowerCase().replace(/\s+/g, '-');
+  useEffect(() => {
+    const fetchAllWorkItems = async () => {
+      try {
+        setLoading(true);
+        const allItems: WorkItem[] = [];
+
+        // Fetch Education Support
+        const educationResponse = await educationAPI.getAll({ limit: 1000 });
+        const educationData = Array.isArray(educationResponse.data)
+          ? educationResponse.data
+          : (educationResponse.data as { data?: unknown[] })?.data || [];
+        educationData.forEach((item: unknown) => {
+          const edu = item as {
+            educationId?: string;
+            _id?: string;
+            studentName?: string;
+            status?: string;
+            createdAt?: string;
+          };
+          allItems.push({
+            id: edu.educationId || edu._id || "",
+            type: "Education Support",
+            title: `Education Support - ${edu.studentName || "N/A"}`,
+            applicant: edu.studentName || "N/A",
+            status: edu.status || "PENDING",
+            created_at: edu.createdAt || new Date().toISOString(),
+            needs_approval: edu.status === "PENDING",
+          });
+        });
+
+        // Fetch CSR Industrial
+        const csrResponse = await csrIndustrialAPI.getAll({ limit: 1000 });
+        const csrData = Array.isArray(csrResponse.data)
+          ? csrResponse.data
+          : (csrResponse.data as { data?: unknown[] })?.data || [];
+        csrData.forEach((item: unknown) => {
+          const csr = item as {
+            csrId?: string;
+            _id?: string;
+            projectName?: string;
+            status?: string;
+            createdAt?: string;
+          };
+          allItems.push({
+            id: csr.csrId || csr._id || "",
+            type: "CSR Industrial",
+            title: csr.projectName || "CSR Project",
+            applicant: csr.projectName || "N/A",
+            status: csr.status || "PENDING",
+            created_at: csr.createdAt || new Date().toISOString(),
+            needs_approval: csr.status === "PENDING",
+          });
+        });
+
+        // Fetch Appointments
+        const appointmentResponse = await appointmentAPI.getAll({
+          limit: 1000,
+        });
+        const appointmentData = Array.isArray(appointmentResponse.data)
+          ? appointmentResponse.data
+          : (appointmentResponse.data as { data?: unknown[] })?.data || [];
+        appointmentData.forEach((item: unknown) => {
+          const apt = item as {
+            appointmentId?: string;
+            _id?: string;
+            applicantName?: string;
+            purpose?: string;
+            status?: string;
+            createdAt?: string;
+          };
+          allItems.push({
+            id: apt.appointmentId || apt._id || "",
+            type: "Appointment",
+            title: apt.purpose || "Appointment",
+            applicant: apt.applicantName || "N/A",
+            status: apt.status || "PENDING",
+            created_at: apt.createdAt || new Date().toISOString(),
+            needs_approval: apt.status === "PENDING",
+          });
+        });
+
+        // Fetch Programs
+        const programResponse = await programAPI.getAll({ limit: 1000 });
+        const programData = Array.isArray(programResponse.data)
+          ? programResponse.data
+          : (programResponse.data as { data?: unknown[] })?.data || [];
+        programData.forEach((item: unknown) => {
+          const prog = item as {
+            programId?: string;
+            _id?: string;
+            eventName?: string;
+            type?: string;
+            status?: string;
+            createdAt?: string;
+          };
+          allItems.push({
+            id: prog.programId || prog._id || "",
+            type: "Program",
+            title: prog.eventName || "Program",
+            applicant: prog.type || "N/A",
+            status: prog.status || "PLANNED",
+            created_at: prog.createdAt || new Date().toISOString(),
+            needs_approval: prog.status === "PLANNED",
+          });
+        });
+
+        setData(allItems);
+      } catch (error) {
+        console.error("Error fetching work items:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load work items",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAllWorkItems();
+  }, [toast]);
+
+  const handleRowClick = (record: Record<string, unknown>) => {
+    const type = String(record.type).toLowerCase().replace(/\s+/g, "-");
     navigate(`/admin/${type}/${record.id}`);
   };
 
   const handleBatchAction = (action: string, selectedIds: string[]) => {
     console.log(`Batch ${action} for:`, selectedIds);
-    // Handle batch actions here
+    toast({
+      title: "Batch Action",
+      description: `${action} action for ${selectedIds.length} items`,
+    });
   };
 
   const allItems = data;
-  const myApprovals = data.filter(item => item.needs_approval);
+  const myApprovals = data.filter((item) => item.needs_approval);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => navigate("/admin/dashboard")}
+        className="flex items-center gap-2"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back
+      </Button>
+
       <h1 className="text-2xl font-semibold">Work Queues</h1>
-      
+
       <Tabs defaultValue="all" className="space-y-4">
         <TabsList>
           <TabsTrigger value="all">All Items ({allItems.length})</TabsTrigger>
@@ -193,7 +296,7 @@ export default function WorkQueues() {
             columns={allColumns}
             filters={filters}
             savedViews={savedViews}
-            loading={false}
+            loading={loading}
             onRowClick={handleRowClick}
             onBatchAction={handleBatchAction}
             searchPlaceholder="Search across all work items..."
@@ -205,8 +308,8 @@ export default function WorkQueues() {
             title=""
             data={myApprovals}
             columns={allColumns}
-            filters={filters.filter(f => f.key !== 'status')} // Remove status filter for approvals
-            loading={false}
+            filters={filters}
+            loading={loading}
             onRowClick={handleRowClick}
             onBatchAction={handleBatchAction}
             searchPlaceholder="Search approval items..."

@@ -1,162 +1,156 @@
-import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { UserCheck, Clock, AlertCircle, CheckCircle2, User, Users } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  UserCheck,
+  Clock,
+  AlertCircle,
+  CheckCircle2,
+  User,
+  Users,
+  ExternalLink,
+} from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { executiveAPI } from "@/lib/api";
 
 interface Assignment {
   id: string;
+  module: string;
   caseId: string;
-  caseType: string;
-  citizenName: string;
+  title: string;
+  status:
+    | "ASSIGNED"
+    | "IN_PROGRESS"
+    | "PENDING_APPROVAL"
+    | "COMPLETED"
+    | "UNASSIGNED"
+    | "STAGE_1_COMPLETE"
+    | "STAGE_2_COMPLETE"
+    | "VERIFIED";
+  priority: "P1" | "P2" | "P3" | "P4";
+  assignedAt: string;
+  dueDate: string;
   assignedBy: string;
-  assignedTo?: string;
-  status: 'UNASSIGNED' | 'ASSIGNED' | 'IN_PROGRESS' | 'STAGE_1_COMPLETE' | 'STAGE_2_COMPLETE' | 'VERIFIED';
-  priority: 'P1' | 'P2' | 'P3' | 'P4';
-  assignedAt?: Date;
-  dueDate: Date;
-  verificationStage: 1 | 2 | null;
-  notes?: string;
 }
 
 interface AssignmentManagerProps {
-  userRole: 'L1_MASTER_ADMIN' | 'L2_EXEC_ADMIN';
+  userRole: "L1_MASTER_ADMIN" | "L2_EXEC_ADMIN";
   userId: string;
 }
 
-export function AssignmentManager({ userRole, userId }: AssignmentManagerProps) {
+export function AssignmentManager({ userRole }: AssignmentManagerProps) {
   const { toast } = useToast();
-  const [assignments, setAssignments] = useState<Assignment[]>([
-    {
-      id: 'ASG-001',
-      caseId: 'GRV-AP-NLR-2025-000123-X4',
-      caseType: 'Grievance',
-      citizenName: 'Ram Kumar',
-      assignedBy: 'Master Admin',
-      assignedTo: 'Executive Admin 1',
-      status: 'STAGE_1_COMPLETE',
-      priority: 'P2',
-      assignedAt: new Date('2025-01-15'),
-      dueDate: new Date('2025-01-20'),
-      verificationStage: 1,
-      notes: 'Water supply issue requires site verification'
-    },
-    {
-      id: 'ASG-002',
-      caseId: 'TDL-AP-GTR-2025-000045-Y8',
-      caseType: 'Temple Letter',
-      citizenName: 'Sita Devi',
-      assignedBy: 'Master Admin',
-      status: 'UNASSIGNED',
-      priority: 'P3',
-      dueDate: new Date('2025-01-25'),
-      verificationStage: null,
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+
+  const fetchAssignments = useCallback(async () => {
+    try {
+      setLoading(true);
+
+      if (!user?._id) {
+        toast({
+          title: "Error",
+          description: "User not found",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const response = await executiveAPI.getAssignedTasks(user._id);
+
+      if (response.success && Array.isArray(response.data)) {
+        setAssignments(response.data);
+      } else {
+        setAssignments([]);
+      }
+    } catch (error) {
+      console.error("Error fetching assignments:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load assignments",
+        variant: "destructive",
+      });
+      setAssignments([]);
+    } finally {
+      setLoading(false);
     }
-  ]);
+  }, [toast, user]);
 
-  const [selectedAssignment, setSelectedAssignment] = useState<string>('');
-  const [assigneeId, setAssigneeId] = useState<string>('');
-  const [assignmentNotes, setAssignmentNotes] = useState<string>('');
+  useEffect(() => {
+    fetchAssignments();
+  }, [fetchAssignments]);
 
-  const executives = [
-    { id: 'exec-1', name: 'Ravi Kumar', department: 'Water Supply' },
-    { id: 'exec-2', name: 'Priya Sharma', department: 'Revenue' },
-    { id: 'exec-3', name: 'Anil Reddy', department: 'Municipal' },
-  ];
-
-  const getStatusIcon = (status: Assignment['status']) => {
+  const getStatusIcon = (status: Assignment["status"]) => {
     switch (status) {
-      case 'UNASSIGNED':
+      case "UNASSIGNED":
         return <AlertCircle className="h-4 w-4 text-warning" />;
-      case 'ASSIGNED':
+      case "ASSIGNED":
         return <Clock className="h-4 w-4 text-info" />;
-      case 'IN_PROGRESS':
+      case "IN_PROGRESS":
         return <User className="h-4 w-4 text-primary" />;
-      case 'STAGE_1_COMPLETE':
+      case "STAGE_1_COMPLETE":
         return <UserCheck className="h-4 w-4 text-success" />;
-      case 'STAGE_2_COMPLETE':
+      case "STAGE_2_COMPLETE":
         return <Users className="h-4 w-4 text-success" />;
-      case 'VERIFIED':
+      case "VERIFIED":
+        return <CheckCircle2 className="h-4 w-4 text-success" />;
+      case "PENDING_APPROVAL":
+        return <Clock className="h-4 w-4 text-warning" />;
+      case "COMPLETED":
         return <CheckCircle2 className="h-4 w-4 text-success" />;
       default:
         return <Clock className="h-4 w-4 text-muted-foreground" />;
     }
   };
 
-  const getStatusBadge = (status: Assignment['status']) => {
+  const getStatusBadge = (status: Assignment["status"]) => {
     const variants = {
-      'UNASSIGNED': 'destructive',
-      'ASSIGNED': 'secondary',
-      'IN_PROGRESS': 'default',
-      'STAGE_1_COMPLETE': 'success',
-      'STAGE_2_COMPLETE': 'success',
-      'VERIFIED': 'success',
+      UNASSIGNED: "destructive",
+      ASSIGNED: "secondary",
+      IN_PROGRESS: "default",
+      STAGE_1_COMPLETE: "success",
+      STAGE_2_COMPLETE: "success",
+      VERIFIED: "success",
+      PENDING_APPROVAL: "warning",
+      COMPLETED: "success",
     } as const;
-    
+
     return (
-      <Badge variant={variants[status] || 'secondary'}>
-        {status.replace(/_/g, ' ')}
+      <Badge variant={variants[status] || "secondary"}>
+        {status.replace(/_/g, " ")}
       </Badge>
     );
   };
 
-  const handleAssign = () => {
-    if (!selectedAssignment || !assigneeId) {
-      toast({
-        title: "Missing Information",
-        description: "Please select assignment and assignee",
-        variant: "destructive"
-      });
-      return;
-    }
+  const totalCount = assignments.length;
+  const assignedCount = assignments.filter(
+    (a) => a.status === "ASSIGNED"
+  ).length;
+  const inProgressCount = assignments.filter(
+    (a) => a.status === "IN_PROGRESS"
+  ).length;
+  const verificationCount = assignments.filter(
+    (a) => a.status.includes("STAGE") || a.status === "PENDING_APPROVAL"
+  ).length;
+  const completedCount = assignments.filter(
+    (a) => a.status === "COMPLETED" || a.status === "VERIFIED"
+  ).length;
 
-    setAssignments(prev => prev.map(assignment => 
-      assignment.id === selectedAssignment 
-        ? { 
-            ...assignment, 
-            assignedTo: executives.find(e => e.id === assigneeId)?.name,
-            status: 'ASSIGNED' as const,
-            assignedAt: new Date(),
-            notes: assignmentNotes 
-          }
-        : assignment
-    ));
-
-    toast({
-      title: "Assignment Successful",
-      description: "Case has been assigned successfully"
-    });
-
-    setSelectedAssignment('');
-    setAssigneeId('');
-    setAssignmentNotes('');
-  };
-
-  const handleSelfAssign = (assignmentId: string) => {
-    setAssignments(prev => prev.map(assignment => 
-      assignment.id === assignmentId 
-        ? { 
-            ...assignment, 
-            assignedTo: 'Current User',
-            status: 'ASSIGNED' as const,
-            assignedAt: new Date()
-          }
-        : assignment
-    ));
-
-    toast({
-      title: "Self-Assignment Successful",
-      description: "You have been assigned to this case"
-    });
-  };
-
-  const unassignedCount = assignments.filter(a => a.status === 'UNASSIGNED').length;
-  const inProgressCount = assignments.filter(a => a.status === 'IN_PROGRESS').length;
-  const verificationCount = assignments.filter(a => a.status.includes('STAGE')).length;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">Loading assignments...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -165,15 +159,15 @@ export function AssignmentManager({ userRole, userId }: AssignmentManagerProps) 
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center space-x-2">
-              <AlertCircle className="h-5 w-5 text-warning" />
+              <Clock className="h-5 w-5 text-secondary" />
               <div>
-                <p className="text-sm font-medium">Unassigned</p>
-                <p className="text-2xl font-bold">{unassignedCount}</p>
+                <p className="text-sm font-medium">Total Assigned</p>
+                <p className="text-2xl font-bold">{totalCount}</p>
               </div>
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center space-x-2">
@@ -189,7 +183,7 @@ export function AssignmentManager({ userRole, userId }: AssignmentManagerProps) 
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center space-x-2">
-              <UserCheck className="h-5 w-5 text-success" />
+              <UserCheck className="h-5 w-5 text-warning" />
               <div>
                 <p className="text-sm font-medium">In Verification</p>
                 <p className="text-2xl font-bold">{verificationCount}</p>
@@ -204,7 +198,7 @@ export function AssignmentManager({ userRole, userId }: AssignmentManagerProps) 
               <CheckCircle2 className="h-5 w-5 text-success" />
               <div>
                 <p className="text-sm font-medium">Completed</p>
-                <p className="text-2xl font-bold">12</p>
+                <p className="text-2xl font-bold">{completedCount}</p>
               </div>
             </div>
           </CardContent>
@@ -214,7 +208,6 @@ export function AssignmentManager({ userRole, userId }: AssignmentManagerProps) 
       <Tabs defaultValue="assignments" className="space-y-4">
         <TabsList>
           <TabsTrigger value="assignments">All Assignments</TabsTrigger>
-          <TabsTrigger value="assign">Assign Cases</TabsTrigger>
           <TabsTrigger value="verification">Verification Queue</TabsTrigger>
         </TabsList>
 
@@ -224,100 +217,56 @@ export function AssignmentManager({ userRole, userId }: AssignmentManagerProps) 
               <CardTitle>Assignment Overview</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {assignments.map((assignment) => (
-                  <div key={assignment.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex items-center space-x-4">
-                      {getStatusIcon(assignment.status)}
-                      <div>
-                        <p className="font-medium">{assignment.caseId}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {assignment.caseType} - {assignment.citizenName}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Due: {assignment.dueDate.toLocaleDateString()}
-                        </p>
+              {assignments.length === 0 ? (
+                <div className="text-center py-12">
+                  <UserCheck className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">No assignments found</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {assignments.map((assignment) => (
+                    <div
+                      key={assignment.id}
+                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent cursor-pointer transition-colors"
+                      onClick={() =>
+                        navigate(
+                          `/executive/assignments/${assignment.module}/${assignment.id}`
+                        )
+                      }
+                    >
+                      <div className="flex items-center space-x-4">
+                        {getStatusIcon(assignment.status)}
+                        <div>
+                          <p className="font-medium">{assignment.caseId}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {assignment.module} - {assignment.title}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Due:{" "}
+                            {new Date(assignment.dueDate).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center space-x-2">
+                        <Badge
+                          variant={
+                            assignment.priority === "P1"
+                              ? "destructive"
+                              : "secondary"
+                          }
+                        >
+                          {assignment.priority}
+                        </Badge>
+                        {getStatusBadge(assignment.status)}
+                        <ExternalLink className="h-4 w-4 text-muted-foreground" />
                       </div>
                     </div>
-                    
-                    <div className="flex items-center space-x-2">
-                      <Badge variant={assignment.priority === 'P1' ? 'destructive' : 'secondary'}>
-                        {assignment.priority}
-                      </Badge>
-                      {getStatusBadge(assignment.status)}
-                      
-                      {userRole === 'L2_EXEC_ADMIN' && assignment.status === 'UNASSIGNED' && (
-                        <Button 
-                          size="sm" 
-                          onClick={() => handleSelfAssign(assignment.id)}
-                        >
-                          Self Assign
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
-        </TabsContent>
-
-        <TabsContent value="assign" className="space-y-4">
-          {userRole === 'L1_MASTER_ADMIN' && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Assign Cases to Executive Admins</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium">Select Case</label>
-                  <Select value={selectedAssignment} onValueChange={setSelectedAssignment}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select case to assign" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {assignments
-                        .filter(a => a.status === 'UNASSIGNED')
-                        .map((assignment) => (
-                          <SelectItem key={assignment.id} value={assignment.id}>
-                            {assignment.caseId} - {assignment.citizenName}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium">Assign to Executive</label>
-                  <Select value={assigneeId} onValueChange={setAssigneeId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select executive admin" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {executives.map((exec) => (
-                        <SelectItem key={exec.id} value={exec.id}>
-                          {exec.name} - {exec.department}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium">Assignment Notes</label>
-                  <Textarea
-                    placeholder="Add any special instructions or notes..."
-                    value={assignmentNotes}
-                    onChange={(e) => setAssignmentNotes(e.target.value)}
-                  />
-                </div>
-
-                <Button onClick={handleAssign} className="w-full">
-                  Assign Case
-                </Button>
-              </CardContent>
-            </Card>
-          )}
         </TabsContent>
 
         <TabsContent value="verification" className="space-y-4">
@@ -326,26 +275,54 @@ export function AssignmentManager({ userRole, userId }: AssignmentManagerProps) 
               <CardTitle>Cases in Verification</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {assignments
-                  .filter(a => a.status.includes('STAGE') || a.status === 'IN_PROGRESS')
-                  .map((assignment) => (
-                    <div key={assignment.id} className="p-4 border rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-medium">{assignment.caseId}</h4>
-                        {getStatusBadge(assignment.status)}
+              {assignments.filter(
+                (a) =>
+                  a.status.includes("STAGE") ||
+                  a.status === "IN_PROGRESS" ||
+                  a.status === "PENDING_APPROVAL"
+              ).length === 0 ? (
+                <div className="text-center py-12">
+                  <CheckCircle2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">
+                    No cases in verification
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {assignments
+                    .filter(
+                      (a) =>
+                        a.status.includes("STAGE") ||
+                        a.status === "IN_PROGRESS" ||
+                        a.status === "PENDING_APPROVAL"
+                    )
+                    .map((assignment) => (
+                      <div
+                        key={assignment.id}
+                        className="p-4 border rounded-lg hover:bg-accent cursor-pointer transition-colors"
+                        onClick={() =>
+                          navigate(
+                            `/executive/assignments/${assignment.module}/${assignment.id}`
+                          )
+                        }
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-medium">{assignment.caseId}</h4>
+                          <div className="flex items-center gap-2">
+                            {getStatusBadge(assignment.status)}
+                            <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                        </div>
+                        <p className="text-sm text-muted-foreground mb-2">
+                          {assignment.module} - {assignment.title}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Assigned by: {assignment.assignedBy}
+                        </p>
                       </div>
-                      <p className="text-sm text-muted-foreground mb-2">
-                        {assignment.citizenName} - {assignment.caseType}
-                      </p>
-                      <div className="flex items-center space-x-4 text-xs text-muted-foreground">
-                        <span>Assigned to: {assignment.assignedTo}</span>
-                        <span>Stage: {assignment.verificationStage || 'Initial'}</span>
-                        <span>Due: {assignment.dueDate.toLocaleDateString()}</span>
-                      </div>
-                    </div>
-                  ))}
-              </div>
+                    ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

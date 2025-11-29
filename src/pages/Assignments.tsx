@@ -1,16 +1,34 @@
-import { AssignmentManager } from '@/components/assignment/AssignmentManager';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { UserCheck, Clock, AlertCircle } from 'lucide-react';
+import { useNavigate } from "react-router-dom";
+import { AssignmentManager } from "@/components/assignment/AssignmentManager";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { UserCheck, Clock, AlertCircle, ArrowLeft } from "lucide-react";
 
 interface AssignmentsPageProps {
-  userRole: 'L1_MASTER_ADMIN' | 'L2_EXEC_ADMIN';
+  userRole: "L1_MASTER_ADMIN" | "L2_EXEC_ADMIN";
   userId?: string;
 }
 
-export default function Assignments({ userRole = 'L2_EXEC_ADMIN', userId = 'current-user' }: AssignmentsPageProps) {
+export default function Assignments({
+  userRole = "L2_EXEC_ADMIN",
+  userId = "current-user",
+}: AssignmentsPageProps) {
+  const navigate = useNavigate();
+
   return (
     <div className="space-y-6 p-6">
+      {/* Back Button */}
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => navigate("/")}
+        className="flex items-center gap-2"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back
+      </Button>
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -19,8 +37,10 @@ export default function Assignments({ userRole = 'L2_EXEC_ADMIN', userId = 'curr
             Manage case assignments and workflow distribution
           </p>
         </div>
-        <Badge variant={userRole === 'L1_MASTER_ADMIN' ? 'default' : 'secondary'}>
-          {userRole === 'L1_MASTER_ADMIN' ? 'Master Admin' : 'Executive Admin'}
+        <Badge
+          variant={userRole === "L1_MASTER_ADMIN" ? "default" : "secondary"}
+        >
+          {userRole === "L1_MASTER_ADMIN" ? "Master Admin" : "Executive Admin"}
         </Badge>
       </div>
 
@@ -35,10 +55,9 @@ export default function Assignments({ userRole = 'L2_EXEC_ADMIN', userId = 'curr
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">
-              {userRole === 'L1_MASTER_ADMIN' 
-                ? 'Assign cases to Executive Admins and monitor progress'
-                : 'Self-assign available cases and manage your workload'
-              }
+              {userRole === "L1_MASTER_ADMIN"
+                ? "Assign cases to Executive Admins and monitor progress"
+                : "Self-assign available cases and manage your workload"}
             </p>
           </CardContent>
         </Card>
@@ -52,7 +71,8 @@ export default function Assignments({ userRole = 'L2_EXEC_ADMIN', userId = 'curr
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">
-              Monitor case deadlines and ensure timely completion of assigned tasks
+              Monitor case deadlines and ensure timely completion of assigned
+              tasks
             </p>
           </CardContent>
         </Card>

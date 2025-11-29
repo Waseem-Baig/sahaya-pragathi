@@ -1,7 +1,20 @@
-import { useState } from 'react';
-import { Search, Plus, Check, UserCheck, Send, Bell, User, PanelRight } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  Search,
+  Plus,
+  Check,
+  UserCheck,
+  Send,
+  Bell,
+  User,
+  PanelRight,
+  LogOut,
+  Sun,
+  Moon,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,58 +22,72 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Badge } from '@/components/ui/badge';
-import { NewTaskWizard } from '@/components/admin/NewTaskWizard';
-import { BulkApprovalModal } from '@/components/admin/BulkApprovalModal';
-import { AssignDrawer } from '@/components/shared/AssignDrawer';
-import { NotificationModal } from '@/components/admin/NotificationModal';
+} from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
+import { NewTaskWizard } from "@/components/admin/NewTaskWizard";
+import { BulkApprovalModal } from "@/components/admin/BulkApprovalModal";
+import { AssignDrawer } from "@/components/shared/AssignDrawer";
+import { NotificationModal } from "@/components/admin/NotificationModal";
+import { useAuth } from "@/hooks/useAuth";
+import { useTheme } from "@/components/providers/ThemeProvider";
 
 interface MasterAdminTopbarProps {
   onContextToggle: () => void;
   contextOpen: boolean;
 }
 
-export const MasterAdminTopbar = ({ onContextToggle, contextOpen }: MasterAdminTopbarProps) => {
-  const [searchQuery, setSearchQuery] = useState('');
+export const MasterAdminTopbar = ({
+  onContextToggle,
+  contextOpen,
+}: MasterAdminTopbarProps) => {
+  const [searchQuery, setSearchQuery] = useState("");
   const [showNewTaskWizard, setShowNewTaskWizard] = useState(false);
   const [showBulkApproval, setShowBulkApproval] = useState(false);
   const [showAssignDrawer, setShowAssignDrawer] = useState(false);
   const [showNotificationModal, setShowNotificationModal] = useState(false);
 
+  const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
+  const navigate = useNavigate();
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
-    
+
     // Search logic - can search by ID, phone, name
-    console.log('Searching for:', searchQuery);
+    console.log("Searching for:", searchQuery);
     // TODO: Implement global search
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate("/");
   };
 
   const quickActions = [
     {
-      label: 'New Task',
+      label: "New Task",
       icon: Plus,
       onClick: () => setShowNewTaskWizard(true),
-      variant: 'default' as const,
+      variant: "default" as const,
     },
     {
-      label: 'Bulk Approve',
+      label: "Bulk Approve",
       icon: Check,
       onClick: () => setShowBulkApproval(true),
-      variant: 'secondary' as const,
+      variant: "secondary" as const,
     },
     {
-      label: 'Assign',
+      label: "Assign",
       icon: UserCheck,
       onClick: () => setShowAssignDrawer(true),
-      variant: 'secondary' as const,
+      variant: "secondary" as const,
     },
     {
-      label: 'Send Notice',
+      label: "Send Notice",
       icon: Send,
       onClick: () => setShowNotificationModal(true),
-      variant: 'secondary' as const,
+      variant: "secondary" as const,
     },
   ];
 
@@ -99,11 +126,29 @@ export const MasterAdminTopbar = ({ onContextToggle, contextOpen }: MasterAdminT
 
           {/* Right side - User menu, notifications, context panel */}
           <div className="flex items-center gap-2">
+            {/* Theme Toggle */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toggleTheme}
+              title={
+                theme === "dark"
+                  ? "Switch to light mode"
+                  : "Switch to dark mode"
+              }
+            >
+              {theme === "dark" ? (
+                <Sun className="h-4 w-4" />
+              ) : (
+                <Moon className="h-4 w-4" />
+              )}
+            </Button>
+
             {/* Notifications */}
             <Button variant="ghost" size="sm" className="relative">
               <Bell className="h-4 w-4" />
-              <Badge 
-                variant="destructive" 
+              <Badge
+                variant="destructive"
                 className="absolute -top-1 -right-1 h-5 w-5 text-xs p-0 flex items-center justify-center"
               >
                 3
@@ -111,11 +156,12 @@ export const MasterAdminTopbar = ({ onContextToggle, contextOpen }: MasterAdminT
             </Button>
 
             {/* Context Panel Toggle */}
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               size="sm"
               onClick={onContextToggle}
-              className={contextOpen ? 'bg-muted' : ''}
+              className={contextOpen ? "bg-muted" : ""}
+              title="Toggle context panel"
             >
               <PanelRight className="h-4 w-4" />
             </Button>
@@ -123,20 +169,44 @@ export const MasterAdminTopbar = ({ onContextToggle, contextOpen }: MasterAdminT
             {/* User Menu */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="flex items-center gap-2"
+                >
                   <User className="h-4 w-4" />
-                  <span className="hidden sm:inline">Master Admin</span>
+                  <span className="hidden sm:inline">
+                    {user?.fullName || user?.username || "Master Admin"}
+                  </span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                <DropdownMenuLabel>
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none">
+                      {user?.fullName || user?.username || "Master Admin"}
+                    </p>
+                    <p className="text-xs leading-none text-muted-foreground">
+                      {user?.email || ""}
+                    </p>
+                    <p className="text-xs leading-none text-muted-foreground">
+                      {user?.designation || "Master Administrator"}
+                    </p>
+                  </div>
+                </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>Profile Settings</DropdownMenuItem>
-                <DropdownMenuItem>Preferences</DropdownMenuItem>
-                <DropdownMenuItem>Keyboard Shortcuts</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate("/admin/dashboard")}>
+                  <User className="mr-2 h-4 w-4" />
+                  Dashboard
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>Switch Role</DropdownMenuItem>
-                <DropdownMenuItem>Sign Out</DropdownMenuItem>
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onClick={handleLogout}
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Logout
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -145,32 +215,40 @@ export const MasterAdminTopbar = ({ onContextToggle, contextOpen }: MasterAdminT
 
       {/* Modals */}
       {showNewTaskWizard && (
-        <NewTaskWizard 
+        <NewTaskWizard
           open={showNewTaskWizard}
           onClose={() => setShowNewTaskWizard(false)}
         />
       )}
-      
+
       {showBulkApproval && (
         <BulkApprovalModal
           open={showBulkApproval}
           onClose={() => setShowBulkApproval(false)}
         />
       )}
-      
+
       {showAssignDrawer && (
         <AssignDrawer
           open={showAssignDrawer}
           onOpenChange={() => setShowAssignDrawer(false)}
           recordId=""
           recordType="general"
-          onAssign={async (assigneeId: string, departmentId?: string, notes?: string) => {
-            console.log('Assignment completed:', { assigneeId, departmentId, notes });
+          onAssign={async (
+            assigneeId: string,
+            departmentId?: string,
+            notes?: string
+          ) => {
+            console.log("Assignment completed:", {
+              assigneeId,
+              departmentId,
+              notes,
+            });
             setShowAssignDrawer(false);
           }}
         />
       )}
-      
+
       {showNotificationModal && (
         <NotificationModal
           open={showNotificationModal}

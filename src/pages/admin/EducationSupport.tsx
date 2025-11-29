@@ -1,136 +1,226 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { RecordList } from '@/components/shared/RecordList';
-import { StatusBadge } from '@/components/StatusBadge';
-import { Badge } from '@/components/ui/badge';
-import { formatDistanceToNow } from 'date-fns';
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { RecordList } from "@/components/shared/RecordList";
+import { StatusBadge } from "@/components/StatusBadge";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { educationAPI } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 
-const mockEducationSupport = [
-  {
-    id: 'EDU-AP-NLR-2025-000001',
-    student_name: 'Rajesh Kumar',
-    mobile: '9876543210',
-    institution_name: 'IIT Tirupati',
-    program_applied: 'B.Tech Computer Science',
-    fee_concession_percentage: 75,
-    status: 'RECOMMENDED',
-    student_age: 18,
-    created_at: '2025-01-15T10:00:00Z',
-  },
-  {
-    id: 'EDU-AP-NLR-2025-000002',
-    student_name: 'Priya Sharma',
-    mobile: '9876543211',
-    institution_name: 'Anna University',
-    program_applied: 'MBA',
-    fee_concession_percentage: null,
-    status: 'NEW',
-    student_age: 22,
-    created_at: '2025-01-16T14:30:00Z',
-  },
-];
+interface EducationRecord {
+  _id: string;
+  educationId: string;
+  eduId?: string; // For backwards compatibility
+  studentName: string;
+  fatherOrGuardianName?: string;
+  mobile: string;
+  email?: string;
+  currentClass?: string;
+  institutionName: string;
+  institutionType?: string;
+  gender?: string;
+  educationType: string;
+  supportType: string;
+  requestedAmount: number;
+  approvedAmount?: number;
+  status: string;
+  urgency?: string;
+  district?: string;
+  assignedTo?: {
+    _id: string;
+    firstName: string;
+    lastName: string;
+  };
+  createdAt: string;
+  [key: string]: unknown;
+}
 
 const columns = [
   {
-    key: 'id',
-    label: 'ID',
+    key: "educationId",
+    label: "ID",
     sortable: true,
-    render: (value: string) => (
-      <span className="font-mono text-sm text-primary">{value}</span>
+    render: (value: string, record: EducationRecord) => (
+      <span className="font-mono text-sm text-primary">
+        {value || record.eduId || "N/A"}
+      </span>
     ),
   },
   {
-    key: 'student_name',
-    label: 'Student',
+    key: "studentName",
+    label: "Student",
     sortable: true,
+    render: (value: string) => value || "N/A",
   },
   {
-    key: 'institution_name',
-    label: 'Institution',
+    key: "institutionName",
+    label: "Institution",
     sortable: true,
+    render: (value: string) => value || "N/A",
   },
   {
-    key: 'program_applied',
-    label: 'Program',
+    key: "educationType",
+    label: "Type",
     sortable: true,
     render: (value: string) => (
-      <Badge variant="outline">{value}</Badge>
+      <Badge variant="outline">
+        {value ? value.replace(/_/g, " ") : "N/A"}
+      </Badge>
     ),
   },
   {
-    key: 'fee_concession_percentage',
-    label: 'Concession %',
-    render: (value: number) => value ? `${value}%` : 'Pending',
-  },
-  {
-    key: 'student_age',
-    label: 'Age',
+    key: "supportType",
+    label: "Support Type",
     sortable: true,
+    render: (value: string) => (
+      <Badge variant="secondary">
+        {value ? value.replace(/_/g, " ") : "N/A"}
+      </Badge>
+    ),
   },
   {
-    key: 'status',
-    label: 'Status',
+    key: "requestedAmount",
+    label: "Amount",
+    render: (value: number) => `₹${value?.toLocaleString("en-IN") || 0}`,
+  },
+  {
+    key: "status",
+    label: "Status",
     render: (value: string) => <StatusBadge status={value} />,
   },
   {
-    key: 'created_at',
-    label: 'Applied',
-    render: (value: string) => formatDistanceToNow(new Date(value), { addSuffix: true }),
+    key: "assignedTo",
+    label: "Assigned To",
+    render: (_: unknown, record: EducationRecord) =>
+      record.assignedTo
+        ? `${record.assignedTo.firstName} ${record.assignedTo.lastName}`
+        : "Unassigned",
+  },
+  {
+    key: "createdAt",
+    label: "Applied",
+    render: (value: string) =>
+      formatDistanceToNow(new Date(value), { addSuffix: true }),
   },
 ];
 
 const filters = [
   {
-    key: 'institution_name',
-    label: 'Institution',
-    type: 'select' as const,
+    key: "educationType",
+    label: "Education Type",
+    type: "select" as const,
     options: [
-      { value: 'IIT Tirupati', label: 'IIT Tirupati' },
-      { value: 'Anna University', label: 'Anna University' },
-      { value: 'Osmania University', label: 'Osmania University' },
+      { value: "SCHOOL", label: "School" },
+      { value: "INTERMEDIATE", label: "Intermediate" },
+      { value: "UNDERGRADUATE", label: "Undergraduate" },
+      { value: "POSTGRADUATE", label: "Postgraduate" },
+      { value: "DIPLOMA", label: "Diploma" },
+      { value: "VOCATIONAL", label: "Vocational" },
+      { value: "SKILL_TRAINING", label: "Skill Training" },
+      { value: "OTHER", label: "Other" },
     ],
   },
   {
-    key: 'program_applied',
-    label: 'Program Type',
-    type: 'select' as const,
+    key: "educationLevel",
+    label: "Education Level",
+    type: "select" as const,
     options: [
-      { value: 'B.Tech', label: 'B.Tech' },
-      { value: 'MBA', label: 'MBA' },
-      { value: 'Medical', label: 'Medical' },
-      { value: 'Engineering', label: 'Engineering' },
+      { value: "PRIMARY", label: "Primary" },
+      { value: "SECONDARY", label: "Secondary" },
+      { value: "HIGHER_SECONDARY", label: "Higher Secondary" },
+      { value: "UNDERGRADUATE", label: "Undergraduate" },
+      { value: "POSTGRADUATE", label: "Postgraduate" },
+      { value: "PROFESSIONAL", label: "Professional" },
     ],
   },
   {
-    key: 'status',
-    label: 'Status',
-    type: 'select' as const,
+    key: "status",
+    label: "Status",
+    type: "select" as const,
     options: [
-      { value: 'NEW', label: 'New' },
-      { value: 'VERIFIED', label: 'Verified' },
-      { value: 'RECOMMENDED', label: 'Recommended' },
-      { value: 'ACCEPTED', label: 'Accepted' },
-      { value: 'REJECTED', label: 'Rejected' },
+      { value: "REQUESTED", label: "Requested" },
+      { value: "UNDER_REVIEW", label: "Under Review" },
+      { value: "VERIFICATION_PENDING", label: "Verification Pending" },
+      { value: "APPROVED", label: "Approved" },
+      { value: "REJECTED", label: "Rejected" },
+      { value: "AMOUNT_DISBURSED", label: "Amount Disbursed" },
+      { value: "COMPLETED", label: "Completed" },
+      { value: "CANCELLED", label: "Cancelled" },
+    ],
+  },
+  {
+    key: "district",
+    label: "District",
+    type: "select" as const,
+    options: [
+      { value: "Guntur", label: "Guntur" },
+      { value: "Krishna", label: "Krishna" },
+      { value: "Prakasam", label: "Prakasam" },
+      { value: "Nellore", label: "Nellore" },
+      { value: "Visakhapatnam", label: "Visakhapatnam" },
     ],
   },
 ];
 
 const savedViews = [
-  { id: 'pending-verification', name: 'Pending Verification', filters: {} },
-  { id: 'high-performers', name: 'High Performers', filters: {} },
-  { id: 'concession-approved', name: 'Concession Approved', filters: {} },
+  {
+    id: "pending-verification",
+    name: "Pending Verification",
+    filters: { status: "VERIFICATION_PENDING" },
+  },
+  {
+    id: "under-review",
+    name: "Under Review",
+    filters: { status: "UNDER_REVIEW" },
+  },
+  { id: "approved", name: "Approved", filters: { status: "APPROVED" } },
 ];
 
 export default function EducationSupport() {
   const navigate = useNavigate();
-  const [data, setData] = useState(mockEducationSupport);
+  const { toast } = useToast();
+  const [data, setData] = useState<EducationRecord[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleRowClick = (record: any) => {
-    navigate(`/admin/education/${record.id}`);
+  useEffect(() => {
+    fetchEducationRecords();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const fetchEducationRecords = async (filters?: Record<string, string>) => {
+    try {
+      setLoading(true);
+      const response = await educationAPI.getAll(filters);
+      if (response.success && response.data) {
+        setData(response.data as unknown as EducationRecord[]);
+      } else {
+        // Handle case where response is not successful
+        setData([]);
+      }
+    } catch (error) {
+      console.error("Error fetching education records:", error);
+      setData([]); // Set empty array to prevent rendering issues
+      toast({
+        title: "Error",
+        description: "Failed to fetch education support records",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRowClick = (record: Record<string, unknown>) => {
+    const id = (record.eduId || record._id) as string;
+    if (id) {
+      navigate(`/admin/education/${id}`);
+    }
   };
 
   const handleNew = () => {
-    navigate('/admin/education/new');
+    navigate("/admin/education/new");
   };
 
   const handleBatchAction = (action: string, selectedIds: string[]) => {
@@ -139,18 +229,30 @@ export default function EducationSupport() {
   };
 
   return (
-    <RecordList
-      title="Education Support"
-      data={data}
-      columns={columns}
-      filters={filters}
-      savedViews={savedViews}
-      loading={false}
-      onRowClick={handleRowClick}
-      onNew={handleNew}
-      onBatchAction={handleBatchAction}
-      newButtonText="New Education Support"
-      searchPlaceholder="Search by ID, student name..."
-    />
+    <div className="space-y-6 p-6">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => navigate("/admin/dashboard")}
+        className="flex items-center gap-2"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back
+      </Button>
+
+      <RecordList
+        title="Education Support"
+        data={data}
+        columns={columns}
+        filters={filters}
+        savedViews={savedViews}
+        loading={loading}
+        onRowClick={handleRowClick}
+        onNew={handleNew}
+        onBatchAction={handleBatchAction}
+        newButtonText="New Education Support"
+        searchPlaceholder="Search by ID, student name, institution..."
+      />
+    </div>
   );
 }

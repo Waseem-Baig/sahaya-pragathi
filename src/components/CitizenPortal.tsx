@@ -1,104 +1,175 @@
 import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { 
-  FileText, 
-  Scale, 
-  Church, 
-  Heart, 
-  GraduationCap, 
-  Building2, 
+import {
+  FileText,
+  Scale,
+  Church,
+  Heart,
+  GraduationCap,
+  Building2,
   Calendar,
   User,
   Phone,
-  Mail
+  Mail,
+  AlertTriangle,
 } from "lucide-react";
-import { StatusBadge } from "./StatusBadge";
 import { GrievanceForm } from "./forms/GrievanceForm";
 import { TempleLetterForm } from "./forms/TempleLetterForm";
 import { CMRFForm } from "./forms/CMRFForm";
-import { CaseCard } from "./dashboard/CaseCard";
-import type { GrievanceFormData, TempleLetterFormData, CMRFFormData } from "@/types/government";
+import { DisputeForm } from "./forms/DisputeForm";
+import { EducationSupportForm } from "./forms/EducationSupportForm";
+import { CSRIndustrialForm } from "./forms/CSRIndustrialForm";
+import { AppointmentBookingForm } from "./forms/AppointmentBookingForm";
+import { EmergencySupportForm } from "./forms/EmergencySupportForm";
 
 interface CitizenPortalProps {
   onBack: () => void;
 }
 
 export function CitizenPortal({ onBack }: CitizenPortalProps) {
-  const [currentView, setCurrentView] = useState<'dashboard' | 'grievance' | 'temple' | 'cmrf'>('dashboard');
-  const [submittedCases, setSubmittedCases] = useState<(GrievanceFormData | TempleLetterFormData | CMRFFormData)[]>([]);
+  const [currentView, setCurrentView] = useState<
+    | "dashboard"
+    | "grievance"
+    | "temple"
+    | "cmrf"
+    | "dispute"
+    | "education"
+    | "csr"
+    | "appointment"
+    | "emergency"
+  >("dashboard");
+
   const services = [
     {
-      id: 'grievance',
-      title: 'Submit Grievance',
-      description: 'Report issues with government services, infrastructure, or citizen concerns',
+      id: "grievance",
+      title: "Submit Grievance",
+      description:
+        "Report issues with government services, infrastructure, or citizen concerns",
       icon: FileText,
-      color: 'from-primary to-primary-hover',
+      color: "from-primary to-primary-hover",
     },
     {
-      id: 'dispute',
-      title: 'Dispute Resolution',
-      description: 'Mediation services for land, society, or benefit disputes',
+      id: "appointment",
+      title: "Book Appointment",
+      description:
+        "Schedule meetings with government officials and departments",
+      icon: Calendar,
+      color: "from-blue-500 to-blue-600",
+    },
+    {
+      id: "emergency",
+      title: "Emergency Support",
+      description:
+        "Request immediate assistance for medical, police, or disaster emergencies",
+      icon: AlertTriangle,
+      color: "from-red-500 to-red-600",
+    },
+    {
+      id: "dispute",
+      title: "Dispute Resolution",
+      description: "Mediation services for land, society, or benefit disputes",
       icon: Scale,
-      color: 'from-info to-info/80',
+      color: "from-info to-info/80",
     },
     {
-      id: 'temple',
-      title: 'Temple Darshan Letter',
-      description: 'Request VIP or General darshan letters for government temples',
+      id: "temple",
+      title: "Temple Darshan Letter",
+      description:
+        "Request VIP or General darshan letters for government temples",
       icon: Church,
-      color: 'from-warning to-warning/80',
+      color: "from-warning to-warning/80",
     },
     {
-      id: 'cmrf',
-      title: 'CM Relief Fund',
-      description: 'Apply for medical treatment support and hospital recommendations',
+      id: "cmrf",
+      title: "CM Relief Fund",
+      description:
+        "Apply for medical treatment support and hospital recommendations",
       icon: Heart,
-      color: 'from-destructive to-destructive/80',
+      color: "from-destructive to-destructive/80",
     },
     {
-      id: 'education',
-      title: 'Education Support',
-      description: 'Request education recommendations and fee concessions',
+      id: "education",
+      title: "Education Support",
+      description: "Request education recommendations and fee concessions",
       icon: GraduationCap,
-      color: 'from-success to-success/80',
+      color: "from-success to-success/80",
     },
     {
-      id: 'csr',
-      title: 'CSR & Industrial Relations',
-      description: 'Corporate social responsibility projects and tender information',
+      id: "csr",
+      title: "CSR & Industrial Relations",
+      description:
+        "Corporate social responsibility projects and industrial support",
       icon: Building2,
-      color: 'from-primary to-info',
+      color: "from-primary to-info",
     },
   ];
 
   const handleServiceClick = (serviceId: string) => {
-    if (serviceId === 'grievance') setCurrentView('grievance');
-    if (serviceId === 'temple') setCurrentView('temple');
-    if (serviceId === 'cmrf') setCurrentView('cmrf');
-  };
-
-  const handleFormSubmit = (data: GrievanceFormData | TempleLetterFormData | CMRFFormData) => {
-    setSubmittedCases(prev => [data, ...prev]);
-    setCurrentView('dashboard');
-    // Here you would typically send to API
-    console.log('Submitted:', data);
+    setCurrentView(serviceId as typeof currentView);
   };
 
   const handleBackToDashboard = () => {
-    setCurrentView('dashboard');
+    setCurrentView("dashboard");
   };
 
-  if (currentView === 'grievance') {
-    return <GrievanceForm onBack={handleBackToDashboard} onSubmit={handleFormSubmit} />;
+  // Form routing
+  if (currentView === "grievance") {
+    return (
+      <GrievanceForm
+        onBack={handleBackToDashboard}
+        onSubmit={handleBackToDashboard}
+      />
+    );
   }
 
-  if (currentView === 'temple') {
-    return <TempleLetterForm onBack={handleBackToDashboard} onSubmit={handleFormSubmit} />;
+  if (currentView === "temple") {
+    return (
+      <TempleLetterForm
+        onBack={handleBackToDashboard}
+        onSubmit={handleBackToDashboard}
+      />
+    );
   }
 
-  if (currentView === 'cmrf') {
-    return <CMRFForm onBack={handleBackToDashboard} onSubmit={handleFormSubmit} />;
+  if (currentView === "cmrf") {
+    return <CMRFForm onBack={handleBackToDashboard} />;
+  }
+
+  if (currentView === "dispute") {
+    return <DisputeForm onBack={handleBackToDashboard} />;
+  }
+
+  if (currentView === "education") {
+    return (
+      <EducationSupportForm
+        onBack={handleBackToDashboard}
+        onSubmit={handleBackToDashboard}
+      />
+    );
+  }
+
+  if (currentView === "csr") {
+    return <CSRIndustrialForm onBack={handleBackToDashboard} />;
+  }
+
+  if (currentView === "appointment") {
+    return <AppointmentBookingForm onBack={handleBackToDashboard} />;
+  }
+
+  if (currentView === "emergency") {
+    return (
+      <EmergencySupportForm
+        onBack={handleBackToDashboard}
+        onSubmit={handleBackToDashboard}
+      />
+    );
   }
 
   return (
@@ -107,8 +178,12 @@ export function CitizenPortal({ onBack }: CitizenPortalProps) {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Citizen Portal</h1>
-            <p className="text-muted-foreground">Access government services and track your requests</p>
+            <h1 className="text-3xl font-bold text-foreground">
+              Citizen Portal
+            </h1>
+            <p className="text-muted-foreground">
+              Access government services and track your requests
+            </p>
           </div>
           <Button variant="outline" onClick={onBack}>
             Change Role
@@ -129,16 +204,31 @@ export function CitizenPortal({ onBack }: CitizenPortalProps) {
             </CardHeader>
             <CardContent className="p-6">
               <div className="grid md:grid-cols-3 gap-4">
-                <Button variant="government" size="lg" className="h-16 flex-col">
+                <Button
+                  variant="government"
+                  size="lg"
+                  className="h-16 flex-col"
+                  onClick={() => handleServiceClick("grievance")}
+                >
                   <FileText className="h-6 w-6 mb-1" />
                   New Grievance
                 </Button>
-                <Button variant="outline" size="lg" className="h-16 flex-col">
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="h-16 flex-col"
+                  onClick={() => handleServiceClick("appointment")}
+                >
                   <Calendar className="h-6 w-6 mb-1" />
                   Book Appointment
                 </Button>
-                <Button variant="outline" size="lg" className="h-16 flex-col">
-                  <Phone className="h-6 w-6 mb-1" />
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="h-16 flex-col border-red-200 hover:bg-red-50"
+                  onClick={() => handleServiceClick("emergency")}
+                >
+                  <AlertTriangle className="h-6 w-6 mb-1 text-red-500" />
                   Emergency Support
                 </Button>
               </div>
@@ -154,12 +244,14 @@ export function CitizenPortal({ onBack }: CitizenPortalProps) {
               {services.map((service) => {
                 const IconComponent = service.icon;
                 return (
-                  <Card 
+                  <Card
                     key={service.id}
                     className="relative overflow-hidden hover:shadow-elevated transition-smooth cursor-pointer group"
                     onClick={() => handleServiceClick(service.id)}
                   >
-                    <div className={`absolute inset-0 bg-gradient-to-br ${service.color} opacity-5 group-hover:opacity-10 transition-smooth`} />
+                    <div
+                      className={`absolute inset-0 bg-gradient-to-br ${service.color} opacity-5 group-hover:opacity-10 transition-smooth`}
+                    />
                     <CardHeader className="relative z-10 pb-3">
                       <div className="flex items-start justify-between">
                         <div className="p-2 rounded-lg bg-gradient-card shadow-card">
@@ -184,35 +276,30 @@ export function CitizenPortal({ onBack }: CitizenPortalProps) {
 
           {/* Sidebar */}
           <div className="space-y-6">
-            {/* Recent Requests */}
+            {/* Quick Stats */}
             <Card className="shadow-card">
               <CardHeader>
-                <CardTitle className="text-lg">My Recent Requests</CardTitle>
+                <CardTitle className="text-lg">Available Services</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                {submittedCases.length > 0 ? (
-                  <>
-                    {submittedCases.slice(0, 3).map((case_) => (
-                      <CaseCard 
-                        key={case_.id} 
-                        case={case_} 
-                        showActions={false}
-                        userRole="L3"
-                      />
-                    ))}
-                    {submittedCases.length > 3 && (
-                      <Button variant="outline" size="sm" className="w-full">
-                        View All {submittedCases.length} Requests
-                      </Button>
-                    )}
-                  </>
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p className="text-sm">No requests submitted yet</p>
-                    <p className="text-xs">Submit your first request to see it here</p>
+              <CardContent>
+                <div className="space-y-3 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">
+                      Total Services
+                    </span>
+                    <span className="font-semibold">{services.length}</span>
                   </div>
-                )}
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Quick Access</span>
+                    <span className="font-semibold">3</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Status</span>
+                    <span className="text-green-600 font-semibold">
+                      ● Online
+                    </span>
+                  </div>
+                </div>
               </CardContent>
             </Card>
 

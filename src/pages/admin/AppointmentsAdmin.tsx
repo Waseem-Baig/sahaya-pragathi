@@ -1,56 +1,44 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { RecordList } from '@/components/shared/RecordList';
-import { StatusBadge } from '@/components/StatusBadge';
-import { Badge } from '@/components/ui/badge';
-import { formatDistanceToNow } from 'date-fns';
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { RecordList } from "@/components/shared/RecordList";
+import { StatusBadge } from "@/components/StatusBadge";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { appointmentAPI } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 
-const mockAppointments = [
-  {
-    id: 'APP-AP-NLR-2025-000001',
-    applicant_name: 'Suresh Reddy',
-    contact: '9876543210',
-    purpose: 'Discussion on infrastructure project',
-    preferred_date: '2025-01-25',
-    preferred_time: '10:00',
-    confirmed_slot: '2025-01-25T10:00:00Z',
-    meeting_place: 'Chief Minister Office',
-    status: 'CONFIRMED',
-    assigned_to: 'Secretary',
-    created_at: '2025-01-15T10:00:00Z',
-  },
-  {
-    id: 'APP-AP-NLR-2025-000002',
-    applicant_name: 'Meera Devi',
-    contact: '9876543211',
-    purpose: 'Personal grievance discussion',
-    preferred_date: '2025-01-28',
-    preferred_time: '14:00',
-    confirmed_slot: null,
-    meeting_place: null,
-    status: 'REQUESTED',
-    assigned_to: null,
-    created_at: '2025-01-16T14:30:00Z',
-  },
-];
-
+interface AppointmentRecord {
+  _id?: string;
+  appointmentId?: string;
+  applicantName: string;
+  mobile: string;
+  purpose: string;
+  preferredDate?: string;
+  confirmedSlot?: string;
+  meetingPlace?: string;
+  status?: string;
+  createdAt?: string;
+  [key: string]: unknown;
+}
 const columns = [
   {
-    key: 'id',
-    label: 'ID',
+    key: "appointmentId",
+    label: "ID",
     sortable: true,
     render: (value: string) => (
       <span className="font-mono text-sm text-primary">{value}</span>
     ),
   },
   {
-    key: 'applicant_name',
-    label: 'Applicant',
+    key: "applicantName",
+    label: "Applicant",
     sortable: true,
   },
   {
-    key: 'purpose',
-    label: 'Purpose',
+    key: "purpose",
+    label: "Purpose",
     sortable: true,
     render: (value: string) => (
       <div className="max-w-xs truncate" title={value}>
@@ -59,80 +47,127 @@ const columns = [
     ),
   },
   {
-    key: 'preferred_date',
-    label: 'Preferred Date',
+    key: "preferredDate",
+    label: "Preferred Date",
     sortable: true,
-    render: (value: string) => new Date(value).toLocaleDateString(),
+    render: (value: string) =>
+      value ? new Date(value).toLocaleDateString() : "N/A",
   },
   {
-    key: 'confirmed_slot',
-    label: 'Confirmed Slot',
-    render: (value: string) => value ? (
-      <Badge variant="default">
-        {new Date(value).toLocaleString()}
-      </Badge>
-    ) : (
-      <Badge variant="outline">Pending</Badge>
-    ),
+    key: "confirmedSlot",
+    label: "Confirmed Slot",
+    render: (value: string) =>
+      value ? (
+        <Badge variant="default">{new Date(value).toLocaleString()}</Badge>
+      ) : (
+        <Badge variant="outline">Pending</Badge>
+      ),
   },
   {
-    key: 'meeting_place',
-    label: 'Venue',
-    render: (value: string) => value || 'TBD',
+    key: "meetingPlace",
+    label: "Venue",
+    render: (value: string) => value || "TBD",
   },
   {
-    key: 'status',
-    label: 'Status',
-    render: (value: string) => <StatusBadge status={value} />,
+    key: "status",
+    label: "Status",
+    render: (value: string) => <StatusBadge status={value || "REQUESTED"} />,
   },
   {
-    key: 'created_at',
-    label: 'Age',
-    render: (value: string) => formatDistanceToNow(new Date(value), { addSuffix: true }),
+    key: "createdAt",
+    label: "Age",
+    render: (value: string) =>
+      value ? formatDistanceToNow(new Date(value), { addSuffix: true }) : "N/A",
   },
 ];
 
 const filters = [
   {
-    key: 'meeting_place',
-    label: 'Venue',
-    type: 'select' as const,
+    key: "meetingPlace",
+    label: "Venue",
+    type: "select" as const,
     options: [
-      { value: 'Chief Minister Office', label: 'Chief Minister Office' },
-      { value: 'Secretariat', label: 'Secretariat' },
-      { value: 'District Collectorate', label: 'District Collectorate' },
+      { value: "CHIEF_MINISTER_OFFICE", label: "Chief Minister Office" },
+      { value: "SECRETARIAT", label: "Secretariat" },
+      { value: "DISTRICT_COLLECTORATE", label: "District Collectorate" },
+      { value: "FIELD_VISIT", label: "Field Visit" },
+      { value: "VIRTUAL_MEETING", label: "Virtual Meeting" },
     ],
   },
   {
-    key: 'status',
-    label: 'Status',
-    type: 'select' as const,
+    key: "status",
+    label: "Status",
+    type: "select" as const,
     options: [
-      { value: 'REQUESTED', label: 'Requested' },
-      { value: 'CONFIRMED', label: 'Confirmed' },
-      { value: 'CHECKED_IN', label: 'Checked In' },
-      { value: 'COMPLETED', label: 'Completed' },
-      { value: 'NO_SHOW', label: 'No Show' },
+      { value: "REQUESTED", label: "Requested" },
+      { value: "UNDER_REVIEW", label: "Under Review" },
+      { value: "CONFIRMED", label: "Confirmed" },
+      { value: "CHECKED_IN", label: "Checked In" },
+      { value: "COMPLETED", label: "Completed" },
+      { value: "CANCELLED", label: "Cancelled" },
+      { value: "NO_SHOW", label: "No Show" },
     ],
   },
 ];
 
 const savedViews = [
-  { id: 'todays-appointments', name: "Today's Appointments", filters: {} },
-  { id: 'pending-confirmation', name: 'Pending Confirmation', filters: {} },
-  { id: 'vip-appointments', name: 'VIP Appointments', filters: {} },
+  { id: "todays-appointments", name: "Today's Appointments", filters: {} },
+  {
+    id: "pending-confirmation",
+    name: "Pending Confirmation",
+    filters: { status: "REQUESTED" },
+  },
+  { id: "vip-appointments", name: "VIP Appointments", filters: {} },
 ];
 
 export default function AppointmentsAdmin() {
   const navigate = useNavigate();
-  const [data, setData] = useState(mockAppointments);
+  const { toast } = useToast();
+  const [data, setData] = useState<AppointmentRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleRowClick = (record: any) => {
-    navigate(`/admin/appointments/${record.id}`);
+  useEffect(() => {
+    fetchAppointments();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const fetchAppointments = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await appointmentAPI.getAll();
+
+      if (response.success && response.data) {
+        setData(response.data as AppointmentRecord[]);
+      } else {
+        setError("Failed to fetch appointments");
+        toast({
+          title: "Error",
+          description: "Failed to fetch appointments",
+          variant: "destructive",
+        });
+      }
+    } catch (err) {
+      console.error("Error fetching appointments:", err);
+      setError("Failed to fetch appointments");
+      toast({
+        title: "Error",
+        description: "Failed to fetch appointments",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRowClick = (record: Record<string, unknown>) => {
+    const id = record.appointmentId || record._id;
+    navigate(`/admin/appointments/${id}`);
   };
 
   const handleNew = () => {
-    navigate('/admin/appointments/new');
+    navigate("/admin/appointments/new");
   };
 
   const handleBatchAction = (action: string, selectedIds: string[]) => {
@@ -141,18 +176,34 @@ export default function AppointmentsAdmin() {
   };
 
   return (
-    <RecordList
-      title="Appointments"
-      data={data}
-      columns={columns}
-      filters={filters}
-      savedViews={savedViews}
-      loading={false}
-      onRowClick={handleRowClick}
-      onNew={handleNew}
-      onBatchAction={handleBatchAction}
-      newButtonText="New Appointment"
-      searchPlaceholder="Search by ID, applicant name..."
-    />
+    <div className="space-y-6 p-6">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => navigate("/admin/dashboard")}
+        className="flex items-center gap-2"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back
+      </Button>
+
+      <RecordList
+        title="Appointments"
+        data={data}
+        columns={columns}
+        filters={filters}
+        savedViews={savedViews}
+        loading={loading}
+        onRowClick={handleRowClick}
+        onNew={handleNew}
+        onBatchAction={handleBatchAction}
+        newButtonText="New Appointment"
+        searchPlaceholder="Search by ID, applicant name..."
+      />
+
+      {error && (
+        <div className="text-sm text-destructive text-center">{error}</div>
+      )}
+    </div>
   );
 }

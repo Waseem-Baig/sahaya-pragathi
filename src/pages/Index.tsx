@@ -1,37 +1,16 @@
-import { useState } from 'react';
-import { RoleSelector } from '@/components/RoleSelector';
-import { CitizenPortal } from '@/components/CitizenPortal';
-import { ExecutiveDashboard } from '@/components/ExecutiveDashboard';
-import { LeadershipCockpit } from '@/components/LeadershipCockpit';
+import { useNavigate } from "react-router-dom";
+import { RoleSelector } from "@/components/RoleSelector";
+import { useEffect } from "react";
 
-type UserRole = 'L1_MASTER_ADMIN' | 'L2_EXEC_ADMIN' | 'L3_CITIZEN' | null;
+type UserRole = "L1_MASTER_ADMIN" | "L2_EXEC_ADMIN" | "L3_CITIZEN" | null;
 
 const Index = () => {
-  const [selectedRole, setSelectedRole] = useState<UserRole>(null);
+  const navigate = useNavigate();
 
   const handleRoleSelect = (role: UserRole) => {
-    setSelectedRole(role);
+    // Navigate to signin page with role parameter
+    navigate(`/signin?role=${role}`);
   };
-
-  const handleBackToSelection = () => {
-    setSelectedRole(null);
-  };
-
-  if (!selectedRole) {
-    return <RoleSelector onRoleSelect={handleRoleSelect} />;
-  }
-
-  if (selectedRole === 'L3_CITIZEN') {
-    return <CitizenPortal onBack={handleBackToSelection} />;
-  }
-
-  if (selectedRole === 'L2_EXEC_ADMIN') {
-    return <ExecutiveDashboard onBack={handleBackToSelection} />;
-  }
-
-  if (selectedRole === 'L1_MASTER_ADMIN') {
-    return <LeadershipCockpit onBack={handleBackToSelection} />;
-  }
 
   return <RoleSelector onRoleSelect={handleRoleSelect} />;
 };

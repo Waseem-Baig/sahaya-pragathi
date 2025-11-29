@@ -1,11 +1,12 @@
-import { useState } from 'react';
-import { Search, Bell, User, Settings, LogOut, Sun, Moon, Languages } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { SidebarTrigger } from '@/components/ui/sidebar';
-import { useTheme } from '@/components/providers/ThemeProvider';
-import { useLanguage } from '@/components/providers/LanguageProvider';
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Search, Bell, User, LogOut, Sun, Moon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { SidebarTrigger } from "@/components/ui/sidebar";
+import { useTheme } from "@/components/providers/ThemeProvider";
+import { useAuth } from "@/hooks/useAuth";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,35 +14,45 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { UserRole } from '@/types/government';
+} from "@/components/ui/dropdown-menu";
+import { UserRole } from "@/types/government";
 
 interface TopbarProps {
   userRole: UserRole;
   onRoleChange?: () => void;
-  onOpenContext: (data: any) => void;
+  onOpenContext: (data: {
+    type: string;
+    query?: string;
+    results?: unknown[];
+  }) => void;
 }
 
 const roleLabels = {
-  L1_MASTER_ADMIN: { label: 'Master Admin', color: 'destructive' },
-  L2_EXEC_ADMIN: { label: 'Executive Admin', color: 'warning' },
-  L3_CITIZEN: { label: 'Citizen', color: 'info' },
+  L1_MASTER_ADMIN: { label: "Master Admin", color: "destructive" },
+  L2_EXEC_ADMIN: { label: "Executive Admin", color: "warning" },
+  L3_CITIZEN: { label: "Citizen", color: "info" },
 } as const;
 
 export function Topbar({ userRole, onRoleChange, onOpenContext }: TopbarProps) {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const { theme, toggleTheme } = useTheme();
-  const { language, toggleLanguage } = useLanguage();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
       onOpenContext({
-        type: 'search',
+        type: "search",
         query: searchQuery,
-        results: [] // Would be populated by actual search
+        results: [],
       });
     }
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate("/auth/login");
   };
 
   const roleConfig = roleLabels[userRole as keyof typeof roleLabels];
@@ -50,7 +61,7 @@ export function Topbar({ userRole, onRoleChange, onOpenContext }: TopbarProps) {
     <header className="h-16 border-b border-border bg-card/50 backdrop-blur-sm px-6 flex items-center justify-between">
       <div className="flex items-center gap-4">
         <SidebarTrigger className="text-muted-foreground" />
-        
+
         <form onSubmit={handleSearch} className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -64,58 +75,68 @@ export function Topbar({ userRole, onRoleChange, onOpenContext }: TopbarProps) {
 
       <div className="flex items-center gap-4">
         {/* Role Badge */}
-        <Badge variant={roleConfig?.color as any} className="font-semibold">
+        <Badge
+          variant={roleConfig?.color as "destructive" | "warning" | "info"}
+          className="font-semibold"
+        >
           {roleConfig?.label}
         </Badge>
-
-        {/* Language Toggle */}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={toggleLanguage}
-          className="gap-2"
-        >
-          <Languages className="h-4 w-4" />
-          {language === 'en' ? 'తె' : 'EN'}
-        </Button>
 
         {/* Theme Toggle */}
         <Button
           variant="ghost"
           size="sm"
           onClick={toggleTheme}
+          title={
+            theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"
+          }
         >
-          {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          {theme === "dark" ? (
+            <Sun className="h-4 w-4" />
+          ) : (
+            <Moon className="h-4 w-4" />
+          )}
         </Button>
 
         {/* Notifications */}
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => onOpenContext({ type: 'notifications' })}
+          onClick={() => onOpenContext({ type: "notifications" })}
           className="relative"
+          title="Notifications"
         >
           <Bell className="h-4 w-4" />
-          <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 text-xs">3</Badge>
+          <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 text-xs flex items-center justify-center">
+            3
+          </Badge>
         </Button>
 
         {/* User Menu */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm">
+            <Button variant="ghost" size="sm" className="gap-2">
               <User className="h-4 w-4" />
+              <span className="text-sm font-medium hidden md:inline">
+                {user?.fullName || user?.username || user?.email || "User"}
+              </span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>My Account</DropdownMenuLabel>
+            <DropdownMenuLabel>
+              <div className="flex flex-col space-y-1">
+                <p className="text-sm font-medium leading-none">
+                  {user?.fullName || user?.username || "User"}
+                </p>
+                <p className="text-xs leading-none text-muted-foreground">
+                  {user?.email || ""}
+                </p>
+              </div>
+            </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate("/admin/dashboard")}>
               <User className="mr-2 h-4 w-4" />
-              Profile Settings
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Settings className="mr-2 h-4 w-4" />
-              Preferences
+              Dashboard
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             {onRoleChange && (
@@ -126,7 +147,10 @@ export function Topbar({ userRole, onRoleChange, onOpenContext }: TopbarProps) {
                 <DropdownMenuSeparator />
               </>
             )}
-            <DropdownMenuItem className="text-destructive">
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive"
+              onClick={handleLogout}
+            >
               <LogOut className="mr-2 h-4 w-4" />
               Logout
             </DropdownMenuItem>
